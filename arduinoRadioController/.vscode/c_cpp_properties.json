@@ -1,0 +1,19 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "/home/joao/.arduino15/packages/arduino/tools/**",
+                "/home/joao/.arduino15/packages/arduino/hardware/avr/1.6.23/**"
+            ],
+            "forcedInclude": [
+                "/home/joao/.arduino15/packages/arduino/hardware/avr/1.6.23/cores/arduino/Arduino.h"
+            ],
+            "intelliSenseMode": "gcc-x64",
+            "compilerPath": "/usr/bin/clang",
+            "cStandard": "c18",
+            "cppStandard": "c++14"
+        }
+    ],
+    "version": 4
+}
