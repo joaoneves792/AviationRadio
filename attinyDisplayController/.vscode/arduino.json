@@ -1,0 +1,7 @@
+{
+    "board": "attiny:avr:ATtinyX5",
+    "configuration": "cpu=attiny85,clock=internal16",
+    "programmer": "Arduino as ISP",
+    "sketch": "attinyDisplayController.ino",
+    "port": "/dev/ttyACM0"
+}

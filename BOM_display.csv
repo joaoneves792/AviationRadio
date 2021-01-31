@@ -1,0 +1,8 @@
+Name	Type	Value	Quantity	Unit Price	Quant Price		Total BOM Cost
+Q1, Q2, Q3, Q4, Q5, Q6	TO92	2N7000	6	0,10 ?	0,60 ?		11,19 ?
+IC3	DIP8	ATTiny85	1	2,68 ?	2,68 ?		
+Connector1	Connector: Pin Strip (100 mil) (4 pins)	Connector1	1	0,10 ?	0,10 ?		
+R1	AngledResistor	220	1	0,02 ?	0,02 ?		
+IC1, IC2	DIP16	74HC595	2	0,71 ?	1,42 ?		
+7S1, 7S2	7SEG	HDSP-433G	2	2,60 ?	5,20 ?		
+Board	PerfBoard	PerfBoard	1	1,17 ?	1,17 ?		

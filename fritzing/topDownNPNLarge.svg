@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<!-- Created with Fritzing (http://www.fritzing.org/) -->
+<svg xmlns:svg='http://www.w3.org/2000/svg' xmlns='http://www.w3.org/2000/svg' version='1.2' baseProfile='tiny' x='0in' y='0in' width='0.229546in' height='0.173598in' viewBox='0 0 16.5273 12.4991' >
+<path stroke='#8c8c8c' stroke-width='2.15997' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M15.447,11.347L15.447,11.4187' />
+<path stroke='#8c8c8c' stroke-width='2.15997' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M8.25569,11.347L8.25569,11.4187' />
+<path stroke='#8c8c8c' stroke-width='2.15997' stroke-linecap='round' stroke-linejoin='round' fill='none' d='M1.07999,11.347L1.07999,11.4187' />
+<g partID='854296530'><g transform='translate(0.00023676,0)' ><g  id="breadboard">
+ <metadata  id="CorelCorpID_0Corel-Layer"/>
+ <g transform="matrix(5.71267e-14, -1, 1, 1.20516e-14, 1.62192e-09, 12.427)">
+  <rect  height="2.16012" width="2.16012" gorn="0.0.0" id="connector0pin" fill="none"/>
+ </g>
+ <rect  x="7.17632" height="2.16012" width="2.16012" gorn="0.0.1" y="10.1894" id="connector1pin" fill="none"/>
+ <g transform="matrix(5.71267e-14, -1, 1, 1.20516e-14, 14.367, 12.427)">
+  <rect  height="2.16012" width="2.16012" gorn="0.0.2" id="connector2pin" fill="none"/>
+ </g>
+ <g  stroke-linecap="round" stroke="#8C8C8C" y1="18212" gorn="0.0.3" y2="18327" stroke-width="2.15997" id="connector0leg" fill="none" x1="1733" x2="1733"/>
+ <g  stroke-linecap="round" stroke="#8C8C8C" y1="18212" gorn="0.0.4" y2="18327" stroke-width="2.15997" id="connector1leg" fill="none" x1="13250" x2="13250"/>
+ <g  stroke-linecap="round" stroke="#8C8C8C" y1="18212" gorn="0.0.5" y2="18327" stroke-width="2.15997" id="connector2leg" fill="none" x1="24792" x2="24792"/>
+ <path  gorn="0.0.7" fill="#8C8C8C" d="M2.12897,6.69283l-0.0398754,0.0348909c-1.02492,0.890965,-2.08785,1.81869,-2.08785,2.9919l0,1.61869,2.15389,0c0,0,0,-0.999999,0,-1.20997,0,-0.517134,0.904049,-1.38878,1.34953,-1.76885,0.631775,-0.550778,1.24299,-1.08224,1.60685,-1.66667l-2.98318,0z"/>
+ <rect  x="7.17819" height="4.28972" width="2.15389" gorn="0.0.6" y="6.97943" id="rect9506" fill="#8C8C8C"/>
+ <path  gorn="0.0.8" fill="#8C8C8C" d="M14.3801,6.69283l0.0398754,0.0348909c1.02679,0.890965,2.0891,1.81869,2.0891,2.9919l0,1.61869,-2.15389,0c0,0,0,-0.999999,0,-1.20997,0,-0.517134,-0.904049,-1.38878,-1.34953,-1.76885,-0.632398,-0.550778,-1.24424,-1.08224,-1.60748,-1.66667l2.98255,0z"/>
+ <path  fill="black" d="M8.25607,0c3.6785,0,6.65981,2.98193,6.65981,6.65981,0,1.30654,-0.376324,2.52523,-1.02617,3.55327l-11.2673,0c-0.649844,-1.02804,-1.02617,-2.24673,-1.02617,-3.55327,0,-3.6785,2.98193,-6.65981,6.65981,-6.65981z"/>
+ <path  fill="#4B4B4D" d="M14.8037,7.8785c-0.156386,0.844859,-0.472274,1.63364,-0.915264,2.33458l-11.2667,0c-0.44299,-0.700934,-0.758878,-1.48972,-0.915264,-2.33458l13.0972,0z"/>
+ <polygon  points="5.0162,7.17943,5.0162,1.77944,7.17632,1.77944,7.17632,2.85794,8.25607,2.85856,8.25607,3.93831,9.33707,3.93831,9.33707,1.77819,11.4959,1.77819,11.4959,7.17819,9.33831,7.17819,9.33831,6.09968,8.25669,6.09906,8.25669,5.01931,7.17694,5.01931,7.17694,7.18006,5.0162,7.18006" fill="#CCCCCC"/>
+</g>
+</g></g></svg>

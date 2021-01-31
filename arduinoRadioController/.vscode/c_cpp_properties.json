@@ -3,11 +3,12 @@
         {
             "name": "Linux",
             "includePath": [
+                "/home/joao/.arduino15/packages/arduino/hardware/megaavr/1.8.7/**",
                 "/home/joao/.arduino15/packages/arduino/tools/**",
                 "/home/joao/.arduino15/packages/arduino/hardware/avr/1.6.23/**"
             ],
             "forcedInclude": [
-                "/home/joao/.arduino15/packages/arduino/hardware/avr/1.6.23/cores/arduino/Arduino.h"
+                "/home/joao/.arduino15/packages/arduino/hardware/megaavr/1.8.7/cores/arduino/Arduino.h"
             ],
             "intelliSenseMode": "gcc-x64",
             "compilerPath": "/usr/bin/clang",
