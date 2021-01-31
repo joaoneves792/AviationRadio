@@ -28,8 +28,8 @@ void i2cReceive(uint8_t bytes){
   if(bytes < CMD_LEN)
     return;
   do{
-    uint8_t registerPos = TinyWireS.receive();
-    i2cRegisters[registerPos] = TinyWireS.receive(); //Not checking bounds on purpose, because hacking is fun ;)
+    uint8_t registerPos = (TinyWireS.receive() + 3 )% 6; //Swap the order of the displays
+    i2cRegisters[registerPos] = TinyWireS.receive();
 
   }while((bytes -= CMD_LEN) > 0);
 }
@@ -49,7 +49,7 @@ void setup() {
   }
 
 
-  TinyWireS.begin(SLAVE_STNDBY_ADDRESS);
+  TinyWireS.begin(SLAVE_ACTIVE_ADDRESS);
   TinyWireS.onReceive(i2cReceive);
 }
 
