@@ -6,7 +6,8 @@ Encoder innerEncoder(4, 5);
 #define latchPin 8 //Pin connected to ST_CP of 74HC595
 #define clockPin 12 //Pin connected to SH_CP of 74HC595
 #define dataPin 11 //Pin connected to DS of 74HC595
-#define buttonPin A4 //Pin connected to active/standby button
+#define buttonPin A3 //Pin connected to active/standby button
+#define signalPin A6
 
 #define SLAVE_ACTIVE_ADDRESS 0x12
 #define SLAVE_STNDBY_ADDRESS 0x13
@@ -77,11 +78,11 @@ void updateDisplays(){
   if(lastActiveFreq != shm_activeFreq){
     Wire.beginTransmission(SLAVE_ACTIVE_ADDRESS);
     Wire.write(0);
-    Wire.write(digitSegments[0]);
+    Wire.write(digitSegments[(int)((shm_activeFreq / 100) % 10)]);
     Wire.write(1);
-    Wire.write(digitSegments[1]);
+    Wire.write(digitSegments[(int)((shm_activeFreq /10) % 10)]);
     Wire.write(2);
-    Wire.write(digitSegments[2]);  
+    Wire.write(digitSegments[(int)(shm_activeFreq % 10)]);  
     Wire.write(3);
     Wire.write(digitSegments[3]);
     Wire.write(4);
@@ -107,16 +108,16 @@ void updateDisplays(){
   }
      
 }
-/*
+
 void smoothPotToDigit(){
-#define potToDigit() ((short)(analogRead(signalPin)/850.0*999))
+#define potToDigit() ((short)(analogRead(signalPin)))
  static short average = potToDigit();
  
  average -= average/10;
  average += potToDigit()/10;
 
  shm_activeFreq = average;
-}*/
+}
 
 void readEncoder(){
   shm_activeFreq = outerEncoder.read();
@@ -152,6 +153,7 @@ void setup() {
   pinMode(clockPin, OUTPUT);
   pinMode(dataPin, OUTPUT);
   pinMode(buttonPin, INPUT_PULLUP);
+  pinMode(signalPin, INPUT);
 
   Wire.begin();
 
@@ -162,7 +164,8 @@ void setup() {
   
   insertThread(createNewThread(updateDisplays, 100));
   firstThread = threads;
-  insertThread(createNewThread(readEncoder, 1));
+  insertThread(createNewThread(smoothPotToDigit, 5));
+  //insertThread(createNewThread(readEncoder, 1));
   insertThread(createNewThread(buttonDebounce, 50));
 
   firstThread->next = threads;
