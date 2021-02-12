@@ -1,4 +1,4 @@
-#include "TinyWireS.h"
+#include "TinyWireM.h"
 /**
  *   Attiny85 PINS
  *             ____
