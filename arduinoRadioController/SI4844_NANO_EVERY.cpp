@@ -289,8 +289,11 @@ void SI4844::setBand(byte new_band)
     // Assigning 1 to bit 7. It means we are using external crystal
     // Silicon Labs; Si48XX ATDD PROGRAMMING GUIDE; AN610; page 7
     // Just another way to deal with bytes and bits using C/C++.
-    new_band |= 0b00000000;
-    new_band &= 0b00111111;
+    //new_band |= 0b00000000;
+    //new_band &= 0b00111111;
+    
+    new_band |= 0b10000000;
+    new_band &= 0b10111111;
 
     data_from_device = false;
 
@@ -309,16 +312,17 @@ void SI4844::setBand(byte new_band)
     getStatus();
     delayMicroseconds(2500);
 
+    //For external 8Mhz clock
     //setProperty(0x0201, 0x8020); //SET Clock to 32800
     //setProperty(0x0202, 250); //Set divider to 250 (8.2Mhz/250=32.8kHz)
     
-    setProperty(0x0201, 0x7f8d);
-    setProperty(0x0202, 490);
+    //For external 16Mhz (15.95Mhz) clock
+    //setProperty(0x0201, 0x7c9c); //Set clock to 31900
+    //setProperty(0x0202, 500); //Set divider to 500
     
 
 
 }
-
 
 /**
  * @ingroup GB 
@@ -580,7 +584,7 @@ si4844_status_response *SI4844::getStatus()
             status_response.raw[i] = Wire.read();
         // check response error. Exit when no error found. See page 7.
         // if INFORDY is 0 or CHFREQ is 0, not ready yet
-        Serial.println(status_response.raw[0], HEX);
+        //Serial.println(status_response.raw[0], HEX);
         status = status_response.refined.INFORDY == 0 || (status_response.raw[2] == 0 && status_response.raw[3] == 0);
         if(status){
             digitalWrite(LED_BUILTIN, HIGH);
@@ -749,12 +753,12 @@ void SI4844::setCustomBand(byte bandIndex, uint16_t  botton, uint16_t  top, byte
     Wire.write(0x00);
 
     Wire.endTransmission();
-    delayMicroseconds(2500);
-    //waitInterrupt();
+    //delayMicroseconds(2500);
+    waitInterrupt();
 
-    delayMicroseconds(2500);
+    //delayMicroseconds(2500);
     getStatus();
-    delayMicroseconds(2500);
+    //delayMicroseconds(2500);
 }
 
 /**

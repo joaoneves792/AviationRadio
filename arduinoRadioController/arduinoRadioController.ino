@@ -90,11 +90,11 @@ void insertThread(struct thread* t){
 
 
 void updateDisplays(){
-  //static long lastActiveFreq = 0;
-  //static long lastStandbyFreq = 0;
+  static long lastActiveFreq = 0;
+  static long lastStandbyFreq = 0;
 
-  //if(lastActiveFreq != shm_activeFreq){
-    /*Wire.beginTransmission(SLAVE_ACTIVE_ADDRESS);
+  if(lastActiveFreq != shm_activeFreq){
+    Wire.beginTransmission(SLAVE_STNDBY_ADDRESS);
     Wire.write(0);
     Wire.write(digitSegments[5]);
     Wire.write(1);
@@ -107,7 +107,7 @@ void updateDisplays(){
     Wire.write(digitSegments[1]);  
     Wire.write(5);
     Wire.write(digitSegments[0]);  
-    Wire.endTransmission();*/
+    Wire.endTransmission();/*
     Wire.beginTransmission(SLAVE_STNDBY_ADDRESS);
     Wire.write(0);
     Wire.write(digitSegments[(shm_standbyFreq / 100000) % 10]);
@@ -121,9 +121,9 @@ void updateDisplays(){
     Wire.write(digitSegments[(shm_standbyFreq / 10) % 10]);
     Wire.write(5);
     Wire.write(digitSegments[shm_standbyFreq % 10]);
-    Wire.endTransmission();
+    Wire.endTransmission();*/
     //lastActiveFreq = shm_activeFreq;
-  //}
+  }
      
 }
 /*
@@ -143,6 +143,8 @@ void readEncoder(){
 }
 
 void buttonDebounce(){
+
+  static bool M80 = false;
 #define DEBOUNCE_DELAY 50
   static char lastFlickerableState = HIGH;
   static char lastStableState = HIGH;
@@ -156,12 +158,32 @@ void buttonDebounce(){
 
   if((millis()-lastDebounceTime) > DEBOUNCE_DELAY){
     if(lastStableState == LOW && currentState == HIGH){
+      if(M80){
+        si4844.setCustomBand(3, 10540-10, 10540, 10);
+        M80 = false;
+      }else{
+        si4844.setCustomBand(3, 10430-10, 10430, 10);
+        M80 = true;
+      } 
       short tmpFreq = shm_activeFreq;
       shm_activeFreq = shm_standbyFreq;
       shm_standbyFreq = tmpFreq;
       lastStableState = HIGH;
     }else if (lastStableState == HIGH && currentState == LOW){
       lastStableState = LOW;
+    }
+  }
+}
+
+void checkSerial(){
+  if(Serial.available()){
+    char c = Serial.read();
+    if(c == '+'){
+      si4844.volumeUp();
+      si4844.setStatusInterruptFromDevice(true);
+    }else if(c == '-'){
+      si4844.volumeDown();
+      si4844.setStatusInterruptFromDevice(true);
     }
   }
 }
@@ -237,16 +259,18 @@ void checkATTD(){
   //si4844.getStatus();
   if (si4844.hasStatusChanged())
   {
-    /*Serial.print("Band Index: ");
+    Serial.print("Band Index: ");
     Serial.print(si4844.getStatusBandIndex());
     Serial.print(" - ");
     Serial.print(si4844.getBandMode());
     Serial.print(" - Frequency: ");    
-    Serial.print(si4844.getFrequency(),0);*/
-    shm_standbyFreq = (uint32_t)si4844.getFrequency();
-    /*Serial.print(" KHz");
+    Serial.print(si4844.getFrequency(),0);
+    //shm_standbyFreq = (uint32_t)si4844.getFrequency();
+    Serial.print(" KHz");
+    Serial.print(" - Volume: ");
+    Serial.print(si4844.getVolume());
     Serial.print(" - Stereo ");
-    Serial.println(si4844.getStereoIndicator());*/
+    Serial.println(si4844.getStereoIndicator());
  }
 /*
   if(shm_ATDDIRQ){
@@ -268,7 +292,7 @@ void setup() {
 
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
-  //pinMode(buttonPin, INPUT_PULLUP);
+  pinMode(buttonPin, INPUT_PULLUP);
   //pinMode(signalPin, INPUT);
   //ATDD
   //pinMode(ATDD_RESET_PIN, OUTPUT);
@@ -286,7 +310,8 @@ void setup() {
   //insertThread(createNewThread(smoothPotToDigit, 5));
   //insertThread(createNewThread(readEncoder, 1));
   insertThread(createNewThread(checkATTD, 50));
-  //insertThread(createNewThread(buttonDebounce, 50));
+  insertThread(createNewThread(buttonDebounce, 50));
+  insertThread(createNewThread(checkSerial, 10));
 
   firstThread->next = threads;
 
@@ -295,9 +320,12 @@ void setup() {
 
   Serial.begin(9600);
   //Init ATDD IC 
-  #define DEFAULT_BAND 4
+  #define DEFAULT_BAND 3
   si4844.setup(ATDD_RESET_PIN, ATDD_IRQ_PIN, DEFAULT_BAND);
   si4844.setStatusInterruptFromDevice(true);
+  //si4844.setVolume(63);
+  si4844.setCustomBand(DEFAULT_BAND, 10540-10, 10540, 10);
+  si4844.setBassTreble(1);
   digitalWrite(LED_BUILTIN, HIGH);
   //si4844.setBand(0);
   //shm_standbyFreq = (uint32_t)si4844.getFrequency();
