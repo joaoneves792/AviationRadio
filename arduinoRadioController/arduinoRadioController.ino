@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include "SI4844_NANO_EVERY.h"
+//#include "SI4844_NANO_EVERY.h"
 //#include "./Encoder.h"
 #include <avr/io.h>
 
@@ -8,6 +8,7 @@
 #define clockPin 12 //Pin connected to SH_CP of 74HC595
 #define dataPin 11 //Pin connected to DS of 74HC595
 #define buttonPin A3 //Pin connected to active/standby button
+#define volumePotPin A2
 
 #define ATDD_RESET_PIN 3
 #define ATDD_IRQ_PIN 2
@@ -55,7 +56,7 @@ volatile uint8_t shm_ATDDIRQ = 0;
 //Global *peripherals* 
 //Encoder outerEncoder(2, 3);
 //Encoder innerEncoder(4, 5);
-SI4844 si4844; 
+//SI4844 si4844; 
 /*------------------------*/
 
 /*-----------------------*/
@@ -88,6 +89,134 @@ void insertThread(struct thread* t){
 /*-----------------------*/
 
 
+/*-----------------------*/
+//ATDD commands
+
+uint16_t ATDD_FREQ_TO_INT(uint16_t ATDD_freq){
+  return ((ATDD_freq & 0x0f)+((ATDD_freq & 0xf0)>>4)*10+((ATDD_freq & 0xf00)>>8)*100+((ATDD_freq & 0xf000)>>12)*1000)*10;
+}
+
+
+
+void ATDD_SET_PROPERTY(uint16_t propertyNumber, uint16_t parameter)
+{
+#define SET_PROPERTY 0x12
+    Wire.beginTransmission(ATDD_ADDRESS);
+    Wire.write(SET_PROPERTY);
+    Wire.write(0x00);
+    Wire.write(propertyNumber >> 8); // Send property - High byte - most significant first
+    Wire.write(propertyNumber & 0xff);  // Send property - Low byte - less significant after
+    Wire.write(parameter >> 8);    // Send the argments. High Byte - Most significant first
+    Wire.write(parameter & 0xff);     // Send the argments. Low Byte - Less significant after
+    Wire.endTransmission();
+}
+
+
+void ATDD_RESET(){
+  digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(ATDD_RESET_PIN, LOW);
+  delay(200);
+  digitalWrite(ATDD_RESET_PIN, HIGH);
+}
+
+void ATDD_POWERUP(){
+#define ATDD_POWER_UP_CMD 0xE1
+#define EU_FM_BAND 2
+#define FM_CHSPC 10
+    
+
+    uint8_t args[7];
+
+    args[0] = 0x80;
+    args[0] |= EU_FM_BAND;
+
+    args[1] = (shm_activeFreq-FM_CHSPC) >> 8;
+    args[2] = (shm_activeFreq-FM_CHSPC) & 0xff;
+
+    args[3] = (shm_activeFreq) >> 8;
+    args[4] = (shm_activeFreq) & 0xff;
+
+    args[5] = FM_CHSPC;
+
+    args[6] = 0x0;
+
+    Wire.beginTransmission(ATDD_ADDRESS);
+    Wire.write(ATDD_POWER_UP_CMD);
+    Wire.write(args[0]);
+    Wire.write(args[1]);
+    Wire.write(args[2]);
+    Wire.write(args[3]);
+    Wire.write(args[4]);
+    Wire.write(args[5]);
+    Wire.write(args[6]);
+    Wire.endTransmission();
+}
+
+void ATDD_GET_STATUS(){
+#define ATDD_GET_STATUS_CMD (0xE0)
+#define CTS_BIT_MASK (1 << 7) 
+#define HOSTRST_BIT_MASK (1 << 6)
+#define HOSTPWRUP_BIT_MASK (1 << 5)
+#define INFORDY_BIT_MASK (1 << 4)
+#define STATION_BIT_MASK (1 << 3)
+#define STEREO_BIT_MASK (1 << 2)
+#define BCFG1_BIT_MASK (1 << 1)
+#define BCFG0_BIT_MASK (1 << 0)
+#define GET_BAND_MODE(resp) ((resp & 0xC0) >> 6)
+#define GET_BANDIDX(resp) (resp & 0x3f)
+
+
+    Wire.beginTransmission(ATDD_ADDRESS);
+    Wire.write(ATDD_GET_STATUS_CMD);
+    Wire.endTransmission();
+    delay(2);
+    if(!Wire.requestFrom(ATDD_ADDRESS, 4))
+      return;
+    uint8_t status = Wire.read();
+    uint8_t resp1 = Wire.read();
+    uint8_t resp2 = Wire.read();
+    uint8_t resp3 = Wire.read();
+
+    if(status & HOSTRST_BIT_MASK){
+      Serial.println("Requested reset");
+      ATDD_RESET();
+      return;
+    }
+
+    if(status & HOSTPWRUP_BIT_MASK){
+      Serial.println("Requested powerup");
+      ATDD_POWERUP();
+      return;
+    }
+
+    if(status & INFORDY_BIT_MASK){
+      digitalWrite(LED_BUILTIN, HIGH);
+      Serial.print("Frequency: ");
+      //shm_activeFreq = ((uint16_t)resp2 << 8) | resp3;
+      Serial.print(ATDD_FREQ_TO_INT(((uint16_t)resp2 << 8) | resp3));
+      Serial.print("KHz");
+      Serial.print(" Station ");
+      (status & STATION_BIT_MASK)?Serial.print("valid"):Serial.print("invalid");
+      Serial.print(" Stereo ");
+      (status & STEREO_BIT_MASK)?Serial.print("on"):Serial.print("off");
+      Serial.print(" Band: ");
+      if(GET_BAND_MODE(resp1) == 0)
+        Serial.print("FM");
+      if(GET_BAND_MODE(resp1) == 1)
+        Serial.print("AM");
+      if(GET_BAND_MODE(resp1) == 2)
+        Serial.print("SW");
+    }
+    Serial.println("");
+    
+}
+
+void ATDDIHR(){
+  shm_ATDDIRQ=1;
+  //Serial.println("IRQ");
+} 
+
+/*-----------------------------*/
 
 void updateDisplays(){
   static long lastActiveFreq = 0;
@@ -126,17 +255,26 @@ void updateDisplays(){
   }
      
 }
-/*
-void smoothPotToDigit(){
-#define potToDigit() ((short)(analogRead(signalPin)))
- static short average = potToDigit();
- 
- average -= average/10;
- average += potToDigit()/10;
 
- shm_activeFreq = average;
+void checkVolumePot(){
+#define potToDigit() ((short)(analogRead(volumePotPin)))
+  static uint16_t prevVolume = 0;
+  static short average = potToDigit();
+ 
+  average -= average/10;
+  average += potToDigit()/10;
+
+  uint16_t volume = map(average, 0, 1023, 5, 63);
+  if(volume != prevVolume){
+ #define RX_VOLUME 0x4000
+ //#define FM_DEEMPHASIS 0x1100
+   ATDD_SET_PROPERTY(RX_VOLUME, volume);
+   //ATDD_SET_PROPERTY(FM_DEEMPHASIS, 0x01);
+   prevVolume = volume;
+  }
+
 }
-*/
+
 void readEncoder(){
   /*shm_activeFreq = outerEncoder.read();
   shm_standbyFreq = innerEncoder.read();*/
@@ -159,15 +297,19 @@ void buttonDebounce(){
   if((millis()-lastDebounceTime) > DEBOUNCE_DELAY){
     if(lastStableState == LOW && currentState == HIGH){
       if(M80){
-        si4844.setCustomBand(3, 10540-10, 10540, 10);
+        shm_activeFreq = 10540;
+        ATDD_POWERUP();
+        //si4844.setCustomBand(3, 10540-10, 10540, 10);
         M80 = false;
       }else{
-        si4844.setCustomBand(3, 10430-10, 10430, 10);
+        shm_activeFreq = 10430;
+        ATDD_POWERUP();
+        //si4844.setCustomBand(3, 10430-10, 10430, 10);
         M80 = true;
       } 
-      short tmpFreq = shm_activeFreq;
+      /*short tmpFreq = shm_activeFreq;
       shm_activeFreq = shm_standbyFreq;
-      shm_standbyFreq = tmpFreq;
+      shm_standbyFreq = tmpFreq;*/
       lastStableState = HIGH;
     }else if (lastStableState == HIGH && currentState == LOW){
       lastStableState = LOW;
@@ -179,84 +321,19 @@ void checkSerial(){
   if(Serial.available()){
     char c = Serial.read();
     if(c == '+'){
-      si4844.volumeUp();
-      si4844.setStatusInterruptFromDevice(true);
+      /*si4844.volumeUp();
+      si4844.setStatusInterruptFromDevice(true);*/
     }else if(c == '-'){
-      si4844.volumeDown();
-      si4844.setStatusInterruptFromDevice(true);
+      /*si4844.volumeDown();
+      si4844.setStatusInterruptFromDevice(true);*/
     }
   }
 }
 
-void ATDD_RESET(){
-  digitalWrite(ATDD_RESET_PIN, LOW);
-  delay(200);
-  digitalWrite(ATDD_RESET_PIN, HIGH);
-}
-
-void ATDD_POWERUP(){
-#define ATDD_POWER_UP_CMD 0xE1
-    Wire.beginTransmission(ATDD_ADDRESS);
-    Wire.write(ATDD_POWER_UP_CMD);
-    Wire.write(0x0);
-    Wire.endTransmission();
-    delay(5);
-    Wire.requestFrom(ATDD_ADDRESS, 1);
-    uint8_t status = Wire.read();
-    if(0x80 == status){
-      digitalWrite(LED_BUILTIN, HIGH);
-    }
-
-}
-/*
-void ATDD_GET_STATUS(){
-#define ATDD_GET_STATUS_CMD 0xE0
-#define CTS_BIT_MASK (1 << 7) 
-#define HOSTRST_BIT_MASK (1 << 6)
-#define HOSTPWRUP_BIT_MASK (1 << 5)
-#define INFORDY_BIT_MASK (1 << 4)
-#define STATION_BIT_MASK (1 << 3)
-
-    digitalWrite(LED_BUILTIN, HIGH);
-
-    Wire.beginTransmission(ATDD_ADDRESS);
-    Wire.write(0xE0);
-    Wire.endTransmission();
-    delay(2);
-    Wire.requestFrom(ATDD_ADDRESS, 4);
-    uint8_t status = Wire.read();
-    uint8_t resp1 = Wire.read();
-    uint8_t resp2 = Wire.read();
-    uint8_t resp3 = Wire.read();
-
-    if(status & HOSTRST_BIT_MASK){
-      Serial.println("Requested reset");
-      ATDD_RESET();
-    }
-
-    if(status & HOSTPWRUP_BIT_MASK){
-      Serial.println("Requested powerup");
-      ATDD_POWERUP();
-    }
-
-    if(status & INFORDY_BIT_MASK){
-      Serial.println("infoReady");
-      shm_standbyFreq = ((uint16_t)resp2 << 8) | resp3;
-    }
-    Serial.println(status, HEX);
-    //shm_standbyFreq = status;
-    delay(100);
-    digitalWrite(LED_BUILTIN, LOW);
-    
-}
-*/
-void ATDDIHR(){
-  shm_ATDDIRQ=1;
-  //Serial.println("IRQ");
-} 
 
 void checkATTD(){
   //si4844.getStatus();
+  /*
   if (si4844.hasStatusChanged())
   {
     Serial.print("Band Index: ");
@@ -271,14 +348,12 @@ void checkATTD(){
     Serial.print(si4844.getVolume());
     Serial.print(" - Stereo ");
     Serial.println(si4844.getStereoIndicator());
- }
-/*
+ }*/
   if(shm_ATDDIRQ){
-    delay(5);
     ATDD_GET_STATUS();
     shm_ATDDIRQ = 0;
   }   
-  */
+  
 }
 
 void setup() {
@@ -286,8 +361,9 @@ void setup() {
   //Set clock output on PA7
   //Unfortunatelly the Nano Every does not expose that pin, so I have shorted it to the adjacent PB0 (and PB1 accidentally as well)
   //This means the 16Mhz clock is exposed on the digital 9 and 10 of the arduino 
-  CPU_CCP = CCP_IOREG_gc;
-  CLKCTRL.MCLKCTRLA |= CLKCTRL_CLKOUT_bm;
+  //CPU_CCP = CCP_IOREG_gc;
+  //CLKCTRL.MCLKCTRLA |= CLKCTRL_CLKOUT_bm;
+  //(No longer needed, got the crystal to work)
 
 
   pinMode(LED_BUILTIN, OUTPUT);
@@ -295,7 +371,7 @@ void setup() {
   pinMode(buttonPin, INPUT_PULLUP);
   //pinMode(signalPin, INPUT);
   //ATDD
-  //pinMode(ATDD_RESET_PIN, OUTPUT);
+  pinMode(ATDD_RESET_PIN, OUTPUT);
   //digitalWrite(ATDD_RESET_PIN, LOW);
 
 
@@ -311,7 +387,8 @@ void setup() {
   //insertThread(createNewThread(readEncoder, 1));
   insertThread(createNewThread(checkATTD, 50));
   insertThread(createNewThread(buttonDebounce, 50));
-  insertThread(createNewThread(checkSerial, 10));
+  insertThread(createNewThread(checkVolumePot, 10));
+  //insertThread(createNewThread(checkSerial, 10));
 
   firstThread->next = threads;
 
@@ -319,7 +396,10 @@ void setup() {
   //innerEncoder.write(500);
 
   Serial.begin(9600);
+
   //Init ATDD IC 
+
+/*
   #define DEFAULT_BAND 3
   si4844.setup(ATDD_RESET_PIN, ATDD_IRQ_PIN, DEFAULT_BAND);
   si4844.setStatusInterruptFromDevice(true);
@@ -327,19 +407,20 @@ void setup() {
   si4844.setCustomBand(DEFAULT_BAND, 10540-10, 10540, 10);
   si4844.setBassTreble(1);
   digitalWrite(LED_BUILTIN, HIGH);
-  //si4844.setBand(0);
-  //shm_standbyFreq = (uint32_t)si4844.getFrequency();
-  //attachInterrupt(digitalPinToInterrupt(ATDD_IRQ_PIN), ATDDIHR, RISING);
+*/
+  attachInterrupt(digitalPinToInterrupt(ATDD_IRQ_PIN), ATDDIHR, RISING);
   //Wire.setClock(10000); 
   //For Nano Every
-  //uint32_t frequency = 10000;
   // Formula is: BAUD = ((F_CLKPER/frequency) - F_CLKPER*T_RISE - 10)/2;
   // Where T_RISE varies depending on operating frequency...
   // From 1617 DS: 1000ns @ 100kHz / 300ns @ 400kHz / 120ns @ 1MHz
-  //int16_t t_rise = 10000;
-  //uint32_t baud = ((F_CPU_CORRECTED/frequency) - (((F_CPU_CORRECTED*t_rise)/1000)/1000)/1000 - 10)/2;
-  //TWI0.MBAUD = (uint8_t)baud; 
-  //ATDD_RESET();
+  uint32_t frequency = 10000;
+  int16_t t_rise = 10000;
+  uint32_t baud = ((F_CPU_CORRECTED/frequency) - (((F_CPU_CORRECTED*t_rise)/1000)/1000)/1000 - 10)/2;
+  TWI0.MBAUD = (uint8_t)baud;
+
+  shm_activeFreq = 10540; 
+  ATDD_RESET();
 }
 
 void loop() {
