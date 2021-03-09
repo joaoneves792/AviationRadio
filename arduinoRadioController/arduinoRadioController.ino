@@ -155,6 +155,7 @@ void ATDD_SET_PROPERTY(uint16_t propertyNumber, uint16_t parameter)
     Wire.write(parameter >> 8);    // Send the argments. High Byte - Most significant first
     Wire.write(parameter & 0xff);     // Send the argments. Low Byte - Less significant after
     Wire.endTransmission();
+    Serial.println("property set");
 }
 
 
@@ -181,7 +182,8 @@ void ATDD_POWERUP(){
 
     uint8_t args[7];
 
-    args[0] = 0x80;
+    //args[0] = 0x80; //Enable crystal
+    args[0] = 0x0; //Disable crystal
     args[0] |= BAND;
     if(BAND == EU_FM_BAND){
       args[1] = (freq-1) >> 8;
@@ -213,13 +215,21 @@ void ATDD_POWERUP(){
     Wire.write(args[6]);
     Wire.endTransmission();
    
-    /*delayMicroseconds(2500);
+    shm_ATDDOperational = 1;
+    delayMicroseconds(2500);
     ATDD_GET_STATUS();
-    delayMicroseconds(2500);*/
+    delayMicroseconds(2500);
     Serial.println("Setting clock");
     ATDD_SET_PROPERTY(0x0201, 0x7c9c); //Set clock to 31900
+    delayMicroseconds(2500);
+    ATDD_GET_STATUS();
+    delayMicroseconds(2500);
     ATDD_SET_PROPERTY(0x0202, 500); //Set divider to 500
+    delayMicroseconds(2500);
+    ATDD_GET_STATUS();
+    delayMicroseconds(2500);
     ATDD_SET_PROPERTY(0x4002, 1);
+    shm_ATDDOperational = 0;
     
 }
 
@@ -248,7 +258,7 @@ void ATDD_GET_STATUS(){
     uint8_t resp2 = Wire.read();
     uint8_t resp3 = Wire.read();
 
-
+    Serial.println(status, HEX);
     if(status & HOSTRST_BIT_MASK){
       Serial.println("ATDD: Requested reset");
       ATDD_RESET();
@@ -466,8 +476,8 @@ void setup() {
   CPU_CCP = CCP_IOREG_gc;
   CLKCTRL.MCLKCTRLA |= CLKCTRL_CLKOUT_bm;
   //(No longer needed, got the crystal to work)
-  pinMode(9, INPUT);
-  pinMode(10, INPUT);
+  /*pinMode(9, OUTPUT);
+  pinMode(10, OUTPUT);*/
   pinMode(FMselectPin, INPUT_PULLUP);
   pinMode(COMselectPin, INPUT_PULLUP);
   pinMode(NAVselectPin, INPUT_PULLUP);
