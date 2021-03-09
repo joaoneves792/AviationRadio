@@ -68,8 +68,16 @@ typedef struct {
 
 class Encoder
 {
+private:
+	uint8_t hardware_steps;
+	uint8_t software_steps;
 public:
 	Encoder(uint8_t pin1, uint8_t pin2) {
+		Encoder(pin1, pin2, 1, 1);
+	}
+	Encoder(uint8_t pin1, uint8_t pin2, uint8_t hstep, uint8_t sstep) {
+		hardware_steps = hstep;
+		software_steps = sstep;
 		#ifdef INPUT_PULLUP
 		pinMode(pin1, INPUT_PULLUP);
 		pinMode(pin2, INPUT_PULLUP);
@@ -110,6 +118,7 @@ public:
 		}
 		int32_t ret = encoder.position;
 		interrupts();
+		ret = (ret / hardware_steps)*software_steps;
 		return ret;
 	}
 	inline int32_t readAndReset() {
@@ -122,26 +131,27 @@ public:
 		int32_t ret = encoder.position;
 		encoder.position = 0;
 		interrupts();
+		ret = (ret / hardware_steps)*software_steps;
 		return ret;
 	}
 	inline void write(int32_t p) {
 		noInterrupts();
-		encoder.position = p;
+		encoder.position = (p*hardware_steps/software_steps);
 		interrupts();
 	}
 #else
 	inline int32_t read() {
 		update(&encoder);
-		return encoder.position;
+		return encoder.position/hardware_steps;
 	}
 	inline int32_t readAndReset() {
 		update(&encoder);
-		int32_t ret = encoder.position;
+		int32_t ret = encoder.position/hardware_steps;
 		encoder.position = 0;
 		return ret;
 	}
 	inline void write(int32_t p) {
-		encoder.position = p;
+		encoder.position = p*hardware_steps;
 	}
 #endif
 private:
