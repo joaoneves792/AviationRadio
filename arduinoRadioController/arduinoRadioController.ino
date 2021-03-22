@@ -53,21 +53,48 @@ typedef struct{
 #define SET_FREQ(FREQ, STRUCT) {STRUCT.MHz = FREQ/1000; STRUCT.kHz = FREQ%1000;}
 #define GET_FREQ(STRUCT) ((uint32_t)(STRUCT.MHz)*1000+STRUCT.kHz)
 
+struct setPropertyQueueElement;
+struct setPropertyQueueElement{
+  uint16_t property;
+  uint16_t value;
+  struct setPropertyQueueElement* next;
+};
 
 
 /*-----------------------*/
 //Global variables (shared memory between all threads)
 freq shm_activeFreq;
 freq shm_standbyFreq;
+struct setPropertyQueueElement* shm_propertiesQueue = NULL;
 uint8_t shm_bandmode = 0;
 volatile uint8_t shm_ATDDIRQ = 0;
 uint8_t shm_ATDDOperational = 0;
+uint8_t shm_ATDDReady = 0;
 /*-----------------------*/
 
 /*------------------------*/
 Encoder outerEncoder(15, 14, 2, 1);
 Encoder innerEncoder(16, 17, 2, 5);
 /*------------------------*/
+
+/*------------------------*/
+/* property queue*/
+void queueProperty(uint16_t property, uint16_t value) {
+  struct setPropertyQueueElement* prev = shm_propertiesQueue;
+  while(prev && prev->next){
+    prev = prev->next;
+  }
+  struct setPropertyQueueElement* prop = (struct setPropertyQueueElement*) malloc(sizeof(struct setPropertyQueueElement));
+  prop->property = property;
+  prop->value = value;
+  prop->next = NULL;
+  if(NULL == prev){
+    shm_propertiesQueue = prop;
+  }else{
+    prev->next = prop;
+  }
+ }
+/*-----------------------*/
 
 /*-----------------------*/
 //Thread handling
@@ -146,6 +173,9 @@ void ATDD_SET_PROPERTY(uint16_t propertyNumber, uint16_t parameter)
 {
   if(!shm_ATDDOperational)
     return;
+
+  shm_ATDDReady = 0;
+
 #define SET_PROPERTY 0x12
     Wire.beginTransmission(ATDD_ADDRESS);
     Wire.write(SET_PROPERTY);
@@ -155,12 +185,12 @@ void ATDD_SET_PROPERTY(uint16_t propertyNumber, uint16_t parameter)
     Wire.write(parameter >> 8);    // Send the argments. High Byte - Most significant first
     Wire.write(parameter & 0xff);     // Send the argments. Low Byte - Less significant after
     Wire.endTransmission();
-    Serial.println("property set");
 }
 
 
 void ATDD_RESET(){
   shm_ATDDOperational = 0;
+  shm_ATDDReady = 0;
   digitalWrite(LED_BUILTIN, LOW);
   digitalWrite(ATDD_RESET_PIN, LOW);
   delay(200);
@@ -178,12 +208,14 @@ void ATDD_POWERUP(){
     if(shm_bandmode != FM_MODE && shm_bandmode != AM_MODE && shm_bandmode != SW_MODE)
       return; 
 
+    shm_ATDDReady = 0;
+
     uint16_t freq = (GET_FREQ(shm_activeFreq)/((BAND==EU_FM_BAND)?10:1));
 
     uint8_t args[7];
 
-    //args[0] = 0x80; //Enable crystal
-    args[0] = 0x0; //Disable crystal
+    args[0] = 0x80; //Enable crystal
+    //args[0] = 0x0; //Disable crystal
     args[0] |= BAND;
     if(BAND == EU_FM_BAND){
       args[1] = (freq-1) >> 8;
@@ -215,21 +247,8 @@ void ATDD_POWERUP(){
     Wire.write(args[6]);
     Wire.endTransmission();
    
-    shm_ATDDOperational = 1;
-    delayMicroseconds(2500);
-    ATDD_GET_STATUS();
-    delayMicroseconds(2500);
-    Serial.println("Setting clock");
-    ATDD_SET_PROPERTY(0x0201, 0x7c9c); //Set clock to 31900
-    delayMicroseconds(2500);
-    ATDD_GET_STATUS();
-    delayMicroseconds(2500);
-    ATDD_SET_PROPERTY(0x0202, 500); //Set divider to 500
-    delayMicroseconds(2500);
-    ATDD_GET_STATUS();
-    delayMicroseconds(2500);
-    ATDD_SET_PROPERTY(0x4002, 1);
-    shm_ATDDOperational = 0;
+    //ATDD_SET_PROPERTY(0x0201, 0x7c9c); //Set clock to 31900
+    //ATDD_SET_PROPERTY(0x0202, 500); //Set divider to 500
     
 }
 
@@ -278,8 +297,12 @@ void ATDD_GET_STATUS(){
     }
 
     if(status & INFORDY_BIT_MASK){
-      digitalWrite(LED_BUILTIN, HIGH);
+      if(!shm_ATDDOperational){
+       queueProperty(0x4002, 1);
+       //Mute: queueProperty(0x4001, 0x3);
+      }
       shm_ATDDOperational = 1;
+      digitalWrite(LED_BUILTIN, HIGH);
       Serial.print("ATDD: Frequency: ");
       Serial.print(ATDD_FREQ_TO_INT_FM(((uint16_t)resp2 << 8) | resp3));
       Serial.print("KHz");
@@ -296,6 +319,7 @@ void ATDD_GET_STATUS(){
         Serial.print("SW");
       Serial.println("");
     }
+    shm_ATDDReady = (status & CTS_BIT_MASK);
     
 }
 
@@ -362,20 +386,19 @@ void checkVolumePot(){
 #define potToDigit() ((uint16_t)(analogRead(volumePotPin)))
   static uint16_t prevVolume = 0;
   static uint16_t average = potToDigit();
- 
+
   if(!shm_ATDDOperational)
     return;
 
   average -= average/10;
   average += potToDigit()/10;
 
-  uint16_t volume = map(average, 1023, 0, 20, 63);
+  uint16_t volume = map(average, 1023, 200, 20, 63);
   //uint16_t volume = map(average, 0, 1023, 0, 30);
-  if(volume != prevVolume){
- #define RX_VOLUME 0x4000
- //#define FM_DEEMPHASIS 0x1100
+  if(prevVolume != volume){
+#define RX_VOLUME 0x4000
    ATDD_SET_PROPERTY(RX_VOLUME, volume);
-   //ATDD_SET_PROPERTY(FM_DEEMPHASIS, 0x01);
+   shm_ATDDReady = 0;
    prevVolume = volume;
   }
 
@@ -468,16 +491,28 @@ void checkMode(){
   }
 }
 
+void applyQueuedProperties(){
+  if(!shm_ATDDOperational || !shm_ATDDReady || NULL == shm_propertiesQueue)
+    return;
+
+  struct setPropertyQueueElement* property = shm_propertiesQueue;
+  shm_propertiesQueue = property->next;
+
+  ATDD_SET_PROPERTY(property->property, property->value);
+  shm_ATDDIRQ = 1;
+
+  free(property);
+ 
+}
+
 void setup() {
   //Clock output
   //Set clock output on PA7
   //Unfortunatelly the Nano Every does not expose that pin, so I have shorted it to the adjacent PB0 (and PB1 accidentally as well)
   //This means the 16Mhz clock is exposed on the digital 9 and 10 of the arduino 
-  CPU_CCP = CCP_IOREG_gc;
-  CLKCTRL.MCLKCTRLA |= CLKCTRL_CLKOUT_bm;
+  //CPU_CCP = CCP_IOREG_gc;
+  //CLKCTRL.MCLKCTRLA |= CLKCTRL_CLKOUT_bm;
   //(No longer needed, got the crystal to work)
-  /*pinMode(9, OUTPUT);
-  pinMode(10, OUTPUT);*/
   pinMode(FMselectPin, INPUT_PULLUP);
   pinMode(COMselectPin, INPUT_PULLUP);
   pinMode(NAVselectPin, INPUT_PULLUP);
@@ -504,6 +539,7 @@ void setup() {
   insertThread(createNewThread(checkVolumePot, 10));
   insertThread(createNewThread(checkMode, 20));
   insertThread(createNewThread(checkEEPROM, 500));
+  insertThread(createNewThread(applyQueuedProperties, 10));
 
   firstThread->next = threads;
 
