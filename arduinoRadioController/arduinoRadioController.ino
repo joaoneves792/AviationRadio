@@ -73,8 +73,8 @@ uint8_t shm_ATDDReady = 0;
 /*-----------------------*/
 
 /*------------------------*/
-Encoder outerEncoder(15, 14, 2, 1);
-Encoder innerEncoder(16, 17, 2, 5);
+Encoder outerEncoder(14, 17, 2, 1);
+Encoder innerEncoder(16, 15, 2, 5);
 /*------------------------*/
 
 /*------------------------*/
@@ -393,7 +393,7 @@ void checkVolumePot(){
   average -= average/10;
   average += potToDigit()/10;
 
-  uint16_t volume = map(average, 1023, 200, 20, 63);
+  uint16_t volume = map(average, 200, 1023, 20, 63);
   //uint16_t volume = map(average, 0, 1023, 0, 30);
   if(prevVolume != volume){
 #define RX_VOLUME 0x4000
@@ -559,6 +559,7 @@ void setup() {
   TWI0.MBAUD = (uint8_t)baud;
 
   checkMode();  
+
 }
 
 void loop() {

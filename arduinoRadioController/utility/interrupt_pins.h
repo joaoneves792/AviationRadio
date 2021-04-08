@@ -49,7 +49,7 @@
 
 // Arduino Nano Every, Uno R2 Wifi
 #elif defined(__AVR_ATmega4809__)
-  #define CORE_NUM_INTERRUPT	13
+  #define CORE_NUM_INTERRUPT	17
   #define CORE_INT0_PIN		0
   #define CORE_INT1_PIN		1
   #define CORE_INT2_PIN		2
@@ -64,6 +64,10 @@
   #define CORE_INT11_PIN	11
   #define CORE_INT12_PIN	12
   #define CORE_INT13_PIN	13
+  #define CORE_INT14_PIN	14
+  #define CORE_INT15_PIN	15
+  #define CORE_INT16_PIN	16
+  #define CORE_INT17_PIN	17
 
 // Arduino Leonardo (untested)
 #elif defined(__AVR_ATmega32U4__) && !defined(CORE_TEENSY)
