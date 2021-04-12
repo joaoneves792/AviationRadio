@@ -277,21 +277,20 @@ void ATDD_GET_STATUS(){
     uint8_t resp2 = Wire.read();
     uint8_t resp3 = Wire.read();
 
-    Serial.println(status, HEX);
     if(status & HOSTRST_BIT_MASK){
-      Serial.println("ATDD: Requested reset");
+      //Serial.println("ATDD: Requested reset");
       ATDD_RESET();
       return;
     }
 
     if(status & HOSTPWRUP_BIT_MASK){
-      Serial.println("ATDD: Requested powerup");
+      //Serial.println("ATDD: Requested powerup");
       ATDD_POWERUP();
       return;
     }
     
     if(GET_BAND_MODE(resp1) != shm_bandmode){
-      Serial.println("ATDD: Band mismatch, resetting");
+      //Serial.println("ATDD: Band mismatch, resetting");
       ATDD_RESET();
       return;
     }
@@ -303,7 +302,7 @@ void ATDD_GET_STATUS(){
       }
       shm_ATDDOperational = 1;
       digitalWrite(LED_BUILTIN, HIGH);
-      Serial.print("ATDD: Frequency: ");
+      /*Serial.print("ATDD: Frequency: ");
       Serial.print(ATDD_FREQ_TO_INT_FM(((uint16_t)resp2 << 8) | resp3));
       Serial.print("KHz");
       Serial.print(" Station ");
@@ -318,6 +317,7 @@ void ATDD_GET_STATUS(){
       if(GET_BAND_MODE(resp1) == 2)
         Serial.print("SW");
       Serial.println("");
+      */
     }
     shm_ATDDReady = (status & CTS_BIT_MASK);
     
@@ -406,14 +406,14 @@ void checkVolumePot(){
 
 void readEncoder(){
   uint32_t innerEncoderRead = innerEncoder.read()%1000;
-  if(innerEncoderRead != shm_activeFreq.kHz){
-    shm_activeFreq.kHz = innerEncoderRead;
+  if(innerEncoderRead != shm_standbyFreq.kHz){
+    shm_standbyFreq.kHz = innerEncoderRead;
     printChange();
     ATDD_POWERUP();
   }
   uint32_t outerEncoderRead = outerEncoder.read()%1000;
-  if(outerEncoderRead != shm_activeFreq.MHz){
-    shm_activeFreq.MHz = outerEncoderRead;
+  if(outerEncoderRead != shm_standbyFreq.MHz){
+    shm_standbyFreq.MHz = outerEncoderRead;
     printChange();
     ATDD_POWERUP();
   }
@@ -439,8 +439,8 @@ void buttonDebounce(){
       shm_standbyFreq.MHz = tmpFreqMHz;
       shm_standbyFreq.kHz = tmpFreqkHz;
 
-      innerEncoder.write(shm_activeFreq.kHz);
-      outerEncoder.write(shm_activeFreq.MHz);
+      innerEncoder.write(shm_standbyFreq.kHz);
+      outerEncoder.write(shm_standbyFreq.MHz);
       printChange();
       ATDD_POWERUP();
 
@@ -463,8 +463,13 @@ void checkATTD(){
 
 void checkEEPROM(){
   static uint32_t activeFreq = -1;
-  if(activeFreq != GET_FREQ(shm_activeFreq)){
+  static uint32_t standbyFreq = -1;
+  if(
+    (activeFreq != GET_FREQ(shm_activeFreq)) ||
+    (standbyFreq != GET_FREQ(shm_standbyFreq))    
+    ){
     activeFreq = GET_FREQ(shm_activeFreq);
+    standbyFreq = GET_FREQ(shm_standbyFreq);
     EEPROMwrite(GET_FREQ(shm_standbyFreq), shm_bandmode, STANDBY_MEMSLOT);
     EEPROMwrite(GET_FREQ(shm_activeFreq), shm_bandmode, ACTIVE_MEMSLOT);
   }
@@ -484,8 +489,8 @@ void checkMode(){
     currentBandMode = shm_bandmode;
     SET_FREQ(EEPROMread(shm_bandmode, STANDBY_MEMSLOT), shm_standbyFreq);
     SET_FREQ(EEPROMread(shm_bandmode, ACTIVE_MEMSLOT), shm_activeFreq);
-    innerEncoder.write(shm_activeFreq.kHz);
-    outerEncoder.write(shm_activeFreq.MHz);
+    innerEncoder.write(shm_standbyFreq.kHz);
+    outerEncoder.write(shm_standbyFreq.MHz);
     printChange();
     ATDD_RESET();
   }
@@ -503,6 +508,61 @@ void applyQueuedProperties(){
 
   free(property);
  
+}
+
+void handleSerial(){
+  char query[3+6+1];
+  int8_t i = 0;
+  uint8_t mode;
+  uint8_t active;
+  if(Serial.available() > 0){
+    while(Serial.available() && i < 3){
+      char c = Serial.read();
+      if(c != '\n' || c != '\r'){
+        query[i] = c;
+        i++;
+      }
+    }
+    if(i==3){
+        mode = (query[1] == 'c')?COM_MODE:-1;
+        mode = (query[1] == 'n')?NAV_MODE:mode;
+        if(mode == -1) return;
+
+        active = (query[2] == 'a')?ACTIVE_MEMSLOT:-1;
+        active = (query[2] == 's')?STANDBY_MEMSLOT:active;
+        if(active == -1) return;
+    }
+    if(i==3 && query[0] == 'q'){
+        query[3] = '\0';
+        Serial.print(query);
+        freq f;
+        SET_FREQ(EEPROMread(NAV_MODE, ACTIVE_MEMSLOT), f);
+        Serial.println(GET_FREQ(f));
+    }else if (i==3 && query[0] == 's'){
+      while(Serial.available() && i < 3+6){
+        char c = Serial.read();
+        if(c != '\n' || c != '\r'){
+          query[i] = c;
+          i++;
+        }
+      }
+      if(i==3+6){
+        query[3+6]='\0';
+        uint32_t serialFreq;
+        serialFreq = atoi(query+3);
+        EEPROMwrite(serialFreq, mode, active);
+        if(shm_bandmode == mode){
+          if(active == ACTIVE_MEMSLOT){
+            SET_FREQ(serialFreq, shm_activeFreq);
+          }else if(active == STANDBY_MEMSLOT){
+            SET_FREQ(serialFreq, shm_standbyFreq);
+          }
+        }
+
+      }
+
+    }
+  }
 }
 
 void setup() {
@@ -540,6 +600,7 @@ void setup() {
   insertThread(createNewThread(checkMode, 20));
   insertThread(createNewThread(checkEEPROM, 500));
   insertThread(createNewThread(applyQueuedProperties, 10));
+  insertThread(createNewThread(handleSerial, 10));
 
   firstThread->next = threads;
 
