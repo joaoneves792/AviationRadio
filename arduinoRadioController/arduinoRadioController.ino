@@ -1,6 +1,6 @@
 #include <Arduino.h>
+#include "si5351.h"
 #include <Wire.h>
-//#include "SI4844_NANO_EVERY.h"
 #include "./Encoder.h"
 #include <avr/io.h>
 
@@ -16,6 +16,7 @@
 #define SLAVE_STNDBY_ADDRESS 0x13
 #define ATDD_ADDRESS 0x11
 #define EPROM_ADDRESS 0x50
+#define LO_ADDRESS 0x60
 
 #define ACTIVE_MEMSLOT 0
 #define STANDBY_MEMSLOT 1
@@ -25,7 +26,15 @@
 #define SW_MODE 2
 #define COM_MODE 3
 #define NAV_MODE 4
+#define COM2_MODE 5
 
+#define ENCODER_CONTROLLS_STANDBY
+#undef ENCODER_CONTROLLS_STANDBY
+
+
+// IF in kHz
+#define IF 1205
+#define LO_PPM 146391
 
 const unsigned char digitSegments[16]  = {
                  0b11111100,//0
@@ -70,11 +79,13 @@ uint8_t shm_bandmode = 0;
 volatile uint8_t shm_ATDDIRQ = 0;
 uint8_t shm_ATDDOperational = 0;
 uint8_t shm_ATDDReady = 0;
+uint8_t shm_scanInProgress = 0;
+Si5351 shm_si5351(LO_ADDRESS);
 /*-----------------------*/
 
 /*------------------------*/
-Encoder outerEncoder(14, 17, 2, 1);
-Encoder innerEncoder(16, 15, 2, 5);
+Encoder* outerEncoder = NULL;
+Encoder* innerEncoder = NULL;
 /*------------------------*/
 
 /*------------------------*/
@@ -199,40 +210,46 @@ void ATDD_RESET(){
 
 void ATDD_POWERUP(){
 #define ATDD_POWER_UP_CMD 0xE1
-#define EU_FM_BAND 2
-#define AM_BAND 20
-#define BAND EU_FM_BAND
-//#define BAND AM_BAND
-#define CHSPC 1
+    uint8_t band;
+    uint8_t chspc;
 
     if(shm_bandmode != FM_MODE && shm_bandmode != AM_MODE && shm_bandmode != SW_MODE)
       return; 
 
+    if(shm_bandmode == FM_MODE){
+      band = 2;
+      chspc = 1;
+    }
+    else if (shm_bandmode == AM_MODE){
+      band = 25; //SW bandmode
+      chspc = 5;
+    }
+
     shm_ATDDReady = 0;
 
-    uint16_t freq = (GET_FREQ(shm_activeFreq)/((BAND==EU_FM_BAND)?10:1));
+    uint16_t freq = (GET_FREQ(shm_activeFreq)/((band==EU_FM_BAND)?10:1));
 
     uint8_t args[7];
 
     args[0] = 0x80; //Enable crystal
     //args[0] = 0x0; //Disable crystal
-    args[0] |= BAND;
-    if(BAND == EU_FM_BAND){
-      args[1] = (freq-1) >> 8;
-      args[2] = (freq-1) & 0xff;
+    args[0] |= band;
+    if(shm_bandmode == FM_MODE){
+      args[1] = (freq-chspc) >> 8;
+      args[2] = (freq-chspc) & 0xff;
 
       args[3] = (freq) >> 8;
       args[4] = (freq) & 0xff;
-    }else if(BAND == AM_BAND){
-      args[1] = (freq) >> 8;
-      args[2] = (freq) & 0xff;
+    }else if(shm_bandmode == AM_MODE){
+      args[1] = (IF-(50*chspc)) >> 8;
+      args[2] = (IF-(50*chspc)) & 0xff;
 
-      args[3] = (freq+1) >> 8;
-      args[4] = (freq+1) & 0xff;
+      args[3] = (IF) >> 8;
+      args[4] = (IF) & 0xff;
 
     }
 
-    args[5] = CHSPC;
+    args[5] = chspc;
 
     args[6] = 0x1 << 6;
 
@@ -276,36 +293,51 @@ void ATDD_GET_STATUS(){
     uint8_t resp1 = Wire.read();
     uint8_t resp2 = Wire.read();
     uint8_t resp3 = Wire.read();
-
+    
     if(status & HOSTRST_BIT_MASK){
-      //Serial.println("ATDD: Requested reset");
+      Serial.println("ATDD: Requested reset");
       ATDD_RESET();
       return;
     }
 
     if(status & HOSTPWRUP_BIT_MASK){
-      //Serial.println("ATDD: Requested powerup");
+      Serial.println("ATDD: Requested powerup");
       ATDD_POWERUP();
       return;
     }
     
-    if(GET_BAND_MODE(resp1) != shm_bandmode){
-      //Serial.println("ATDD: Band mismatch, resetting");
-      ATDD_RESET();
-      return;
-    }
-
     if(status & INFORDY_BIT_MASK){
       if(!shm_ATDDOperational){
-       queueProperty(0x4002, 1);
+#define RX_BASS_TREBLE 0x4002
+#define AM_SOFT_MUTE_SLOPE 0x3301
+#define AM_SOFT_MUTE_MAX_ATTENUATION 0x3302
+#define AM_SOFT_MUTE_SNR_THRESHOLD 0x3303
+#define AM_SOFT_MUTE_RATE 0x3300
+        if(shm_bandmode == FM_MODE){
+          queueProperty(RX_BASS_TREBLE, 1);
+        }else{
+          queueProperty(RX_BASS_TREBLE, 1);
+          queueProperty(AM_SOFT_MUTE_SNR_THRESHOLD, 5);//40
+          queueProperty(AM_SOFT_MUTE_SLOPE, 5);
+          queueProperty(AM_SOFT_MUTE_MAX_ATTENUATION, 30); //63
+          queueProperty(AM_SOFT_MUTE_RATE, 255);
+        }
+
        //Mute: queueProperty(0x4001, 0x3);
       }
       shm_ATDDOperational = 1;
       digitalWrite(LED_BUILTIN, HIGH);
-      /*Serial.print("ATDD: Frequency: ");
-      Serial.print(ATDD_FREQ_TO_INT_FM(((uint16_t)resp2 << 8) | resp3));
+      Serial.print("ATDD: Frequency: ");
+      if(shm_bandmode == FM_MODE)
+        Serial.print(ATDD_FREQ_TO_INT_FM(((uint16_t)resp2 << 8) | resp3));
+      else
+        Serial.print(ATDD_FREQ_TO_INT_AM((uint16_t)resp2 << 8 | resp3));
+      
       Serial.print("KHz");
       Serial.print(" Station ");
+      if(shm_scanInProgress && (status & STATION_BIT_MASK)){
+        shm_scanInProgress = 0;
+      }
       (status & STATION_BIT_MASK)?Serial.print("valid"):Serial.print("invalid");
       Serial.print(" Stereo ");
       (status & STEREO_BIT_MASK)?Serial.print("on"):Serial.print("off");
@@ -317,7 +349,7 @@ void ATDD_GET_STATUS(){
       if(GET_BAND_MODE(resp1) == 2)
         Serial.print("SW");
       Serial.println("");
-      */
+      
     }
     shm_ATDDReady = (status & CTS_BIT_MASK);
     
@@ -405,17 +437,37 @@ void checkVolumePot(){
 }
 
 void readEncoder(){
-  uint32_t innerEncoderRead = innerEncoder.read()%1000;
+  uint32_t innerEncoderRead = innerEncoder->read()%1000;
+#ifdef ENCODER_CONTROLLS_STANDBY 
   if(innerEncoderRead != shm_standbyFreq.kHz){
     shm_standbyFreq.kHz = innerEncoderRead;
+#else
+  if(innerEncoderRead != shm_activeFreq.kHz){
+    shm_activeFreq.kHz = innerEncoderRead;
+#endif
     printChange();
+    //We are only changing standby freq, so no need for powerup
+#ifndef ENCODER_CONTROLLS_STANDBY
     ATDD_POWERUP();
+#endif
   }
-  uint32_t outerEncoderRead = outerEncoder.read()%1000;
+  uint32_t outerEncoderRead = outerEncoder->read()%1000;
+#ifdef ENCODER_CONTROLLS_STANDBY
   if(outerEncoderRead != shm_standbyFreq.MHz){
     shm_standbyFreq.MHz = outerEncoderRead;
+#else
+  if(outerEncoderRead != shm_activeFreq.MHz){
+    shm_activeFreq.MHz = outerEncoderRead;
+#endif
     printChange();
-    ATDD_POWERUP();
+#ifndef ENCODER_CONTROLLS_STANDBY
+    if(shm_bandmode == FM_MODE)
+      ATDD_POWERUP();
+    else{
+      uint64_t LO = GET_FREQ(shm_activeFreq)*SI5351_FREQ_MULT - IF;
+      shm_si5351.set_freq(LO, SI5351_CLK0);
+    }
+#endif
   }
 }
 
@@ -438,11 +490,20 @@ void buttonDebounce(){
       SET_FREQ(GET_FREQ(shm_standbyFreq), shm_activeFreq);
       shm_standbyFreq.MHz = tmpFreqMHz;
       shm_standbyFreq.kHz = tmpFreqkHz;
-
-      innerEncoder.write(shm_standbyFreq.kHz);
-      outerEncoder.write(shm_standbyFreq.MHz);
+#ifdef ENCODER_CONTROLLS_STANDBY
+      innerEncoder->write(shm_standbyFreq.kHz);
+      outerEncoder->write(shm_standbyFreq.MHz);
+#else
+      innerEncoder->write(shm_activeFreq.kHz);
+      outerEncoder->write(shm_activeFreq.MHz);
+#endif
       printChange();
-      ATDD_POWERUP();
+      if(shm_bandmode == FM_MODE){
+        ATDD_POWERUP();
+      }else if(shm_bandmode == AM_MODE){
+        uint64_t LO = GET_FREQ(shm_activeFreq)*SI5351_FREQ_MULT - IF;
+        shm_si5351.set_freq(LO, SI5351_CLK0);
+      }
 
 
       lastStableState = HIGH;
@@ -454,7 +515,7 @@ void buttonDebounce(){
 
 
 void checkATTD(){
-  if(shm_ATDDIRQ && shm_bandmode == FM_MODE){
+  if(shm_ATDDIRQ && (shm_bandmode == FM_MODE || shm_bandmode == AM_MODE)){
     ATDD_GET_STATUS();
     shm_ATDDIRQ = 0;
   }   
@@ -478,20 +539,46 @@ void checkEEPROM(){
 
 void checkMode(){
   static uint8_t currentBandMode = -1;
+  uint8_t encoderSteps = 1;
+  if(shm_bandmode == AM_MODE){
+    encoderSteps = 1;
+  }
+
   if(!digitalRead(FMselectPin)){
     shm_bandmode = FM_MODE;
+    encoderSteps = 100;
   }else if(!digitalRead(COMselectPin)){
     shm_bandmode = COM_MODE;
+    encoderSteps = 5;
   }else if(!digitalRead(NAVselectPin)){
     shm_bandmode = NAV_MODE;  
+    encoderSteps = 100;
+  }else{
+    shm_bandmode = AM_MODE;
+    encoderSteps = 1;
   }
   if(currentBandMode != shm_bandmode){  
     currentBandMode = shm_bandmode;
     SET_FREQ(EEPROMread(shm_bandmode, STANDBY_MEMSLOT), shm_standbyFreq);
     SET_FREQ(EEPROMread(shm_bandmode, ACTIVE_MEMSLOT), shm_activeFreq);
-    innerEncoder.write(shm_standbyFreq.kHz);
-    outerEncoder.write(shm_standbyFreq.MHz);
+    if(outerEncoder != NULL)
+      delete outerEncoder;
+    outerEncoder = new Encoder(14, 17, 2, 1);
+    if(innerEncoder != NULL)
+      delete innerEncoder;
+    innerEncoder = new Encoder(16, 15, 2, encoderSteps);
+#ifdef ENCODER_CONTROLLS_STANDBY
+    innerEncoder->write(shm_standbyFreq.kHz);
+    outerEncoder->write(shm_standbyFreq.MHz);
+#else
+    innerEncoder->write(shm_activeFreq.kHz);
+    outerEncoder->write(shm_activeFreq.MHz);
+#endif
     printChange();
+    if(shm_bandmode == AM_MODE){
+      uint64_t LO = GET_FREQ(shm_activeFreq)*SI5351_FREQ_MULT - IF;
+      shm_si5351.set_freq(LO, SI5351_CLK0);
+    }
     ATDD_RESET();
   }
 }
@@ -505,6 +592,7 @@ void applyQueuedProperties(){
 
   ATDD_SET_PROPERTY(property->property, property->value);
   shm_ATDDIRQ = 1;
+  shm_ATDDReady = 0;
 
   free(property);
  
@@ -522,10 +610,20 @@ void handleSerial(){
         query[i] = c;
         i++;
       }
+      if(query[0] == 'a'){
+        shm_bandmode = AM_MODE;
+        return;
+      }
+      if(query[0] == 'x'){
+        shm_scanInProgress = 1;
+        return;
+      }
     }
     if(i==3){
         mode = (query[1] == 'c')?COM_MODE:-1;
         mode = (query[1] == 'n')?NAV_MODE:mode;
+        mode = (query[1] == 'f')?FM_MODE:mode;
+        mode = (query[1] == 'a')?AM_MODE:mode;
         if(mode == -1) return;
 
         active = (query[2] == 'a')?ACTIVE_MEMSLOT:-1;
@@ -536,10 +634,10 @@ void handleSerial(){
         query[3] = '\0';
         Serial.print(query);
         freq f;
-        SET_FREQ(EEPROMread(NAV_MODE, ACTIVE_MEMSLOT), f);
+        SET_FREQ(EEPROMread(mode, ACTIVE_MEMSLOT), f);
         Serial.println(GET_FREQ(f));
     }else if (i==3 && query[0] == 's'){
-      while(Serial.available() && i < 3+6){
+      while(Serial.available() && (i < 3+6)){
         char c = Serial.read();
         if(c != '\n' || c != '\r'){
           query[i] = c;
@@ -549,20 +647,52 @@ void handleSerial(){
       if(i==3+6){
         query[3+6]='\0';
         uint32_t serialFreq;
-        serialFreq = atoi(query+3);
+        serialFreq = atol(query+3);
         EEPROMwrite(serialFreq, mode, active);
         if(shm_bandmode == mode){
           if(active == ACTIVE_MEMSLOT){
             SET_FREQ(serialFreq, shm_activeFreq);
+#ifndef ENCODER_CONTROLLS_STANDBY
+            innerEncoder->write(serialFreq%1000);
+            outerEncoder->write(serialFreq/1000);
+#endif
+            ATDD_POWERUP();
           }else if(active == STANDBY_MEMSLOT){
             SET_FREQ(serialFreq, shm_standbyFreq);
+#ifdef ENCODER_CONTROLLS_STANDBY
+            innerEncoder->write(serialFreq%1000);
+            outerEncoder->write(serialFreq/1000);
+#endif
           }
         }
-
       }
 
     }
   }
+}
+
+void handleScan(){
+  if(!shm_scanInProgress || !shm_ATDDOperational)
+    return;
+
+  uint8_t chspc = (shm_bandmode == FM_MODE)?100:10;
+  shm_activeFreq.kHz += chspc;
+
+  if(shm_activeFreq.kHz >= 990){
+    shm_activeFreq.kHz = 0;
+  }
+
+  if(shm_activeFreq.kHz >= 1000){
+    shm_activeFreq.kHz = 0;
+    //shm_activeFreq.MHz += 1;
+  }
+
+#ifndef ENCODER_CONTROLLS_STANDBY
+  innerEncoder->write(shm_activeFreq.kHz);
+  outerEncoder->write(shm_activeFreq.MHz);
+#endif
+  printChange();
+  ATDD_POWERUP();
 }
 
 void setup() {
@@ -597,10 +727,11 @@ void setup() {
   insertThread(createNewThread(checkATTD, 50));
   insertThread(createNewThread(buttonDebounce, 50));
   insertThread(createNewThread(checkVolumePot, 10));
-  insertThread(createNewThread(checkMode, 20));
+  insertThread(createNewThread(checkMode, 100));
   insertThread(createNewThread(checkEEPROM, 500));
   insertThread(createNewThread(applyQueuedProperties, 10));
   insertThread(createNewThread(handleSerial, 10));
+  insertThread(createNewThread(handleScan, 200));
 
   firstThread->next = threads;
 
@@ -619,6 +750,15 @@ void setup() {
   uint32_t baud = ((F_CPU_CORRECTED/frequency) - (((F_CPU_CORRECTED*t_rise)/1000)/1000)/1000 - 10)/2;
   TWI0.MBAUD = (uint8_t)baud;
 
+
+  //Init LO IC
+  while(!shm_si5351.init(SI5351_CRYSTAL_LOAD_8PF, 0, LO_PPM))
+  {
+    Serial.println("Clock generator not found on I2C bus!");
+    delay(1000);
+  }
+  shm_si5351.update_status();
+  
   checkMode();  
 
 }

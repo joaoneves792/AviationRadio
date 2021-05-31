@@ -35,6 +35,11 @@ static XPLMDataRef  gCOM1Standbykhz;
 static XPLMDataRef  gCOM1ActiveMhz;
 static XPLMDataRef  gCOM1Activekhz;
 
+static XPLMDataRef  gCOM2StandbyMhz;
+static XPLMDataRef  gCOM2Standbykhz;
+static XPLMDataRef  gCOM2ActiveMhz;
+static XPLMDataRef  gCOM2Activekhz;
+
 static XPLMDataRef  gNAV1StandbyMhz;
 static XPLMDataRef  gNAV1Standbykhz;
 static XPLMDataRef  gNAV1ActiveMhz;
@@ -43,10 +48,13 @@ static XPLMDataRef  gNAV1Activekhz;
 
 #define COM_MODE 3
 #define NAV_MODE 4
+#define COM2_MODE 5
 int navActive = 0;
 int navStandby = 0;
 int comActive = 0;
 int comStandby = 0;
+int com2Active = 0;
+int com2Standby = 0;
 char currentMode = 0;
 char needsUpdate = 1;
 pthread_mutex_t lock;
@@ -129,6 +137,12 @@ void* checkRadio(void* args){
             currentMode = NAV_MODE;
             needsUpdate = 1;
           }
+          if(mode == COM2_MODE){
+            com2Active = active;
+            com2Standby = standby;
+            currentMode = COM2_MODE;
+            needsUpdate = 1;
+          }
           pthread_mutex_unlock(&lock);
         }
       }
@@ -160,6 +174,13 @@ float	CheckRadioCallback(
         
         XPLMSetDatai(gCOM1StandbyMhz, comStandby/1000);
         XPLMSetDatai(gCOM1Standbykhz, comStandby - ((comStandby/1000)*1000));
+    }
+    if(currentMode == COM2_MODE){
+        XPLMSetDatai(gCOM2ActiveMhz, com2Active/1000);
+        XPLMSetDatai(gCOM2Activekhz, com2Active - ((com2Active/1000)*1000));
+        
+        XPLMSetDatai(gCOM2StandbyMhz, com2Standby/1000);
+        XPLMSetDatai(gCOM2Standbykhz, com2Standby - ((com2Standby/1000)*1000));
     }
     needsUpdate = 0; 
   }
@@ -197,6 +218,11 @@ PLUGIN_API int XPluginStart(
   gCOM1Standbykhz = XPLMFindDataRef("sim/cockpit2/radios/actuators/com1_standby_frequency_khz");
   gCOM1ActiveMhz = XPLMFindDataRef("sim/cockpit2/radios/actuators/com1_frequency_Mhz");
   gCOM1Activekhz = XPLMFindDataRef("sim/cockpit2/radios/actuators/com1_frequency_khz");
+  
+  gCOM2StandbyMhz = XPLMFindDataRef("sim/cockpit2/radios/actuators/com2_standby_frequency_Mhz");
+  gCOM2Standbykhz = XPLMFindDataRef("sim/cockpit2/radios/actuators/com2_standby_frequency_khz");
+  gCOM2ActiveMhz = XPLMFindDataRef("sim/cockpit2/radios/actuators/com2_frequency_Mhz");
+  gCOM2Activekhz = XPLMFindDataRef("sim/cockpit2/radios/actuators/com2_frequency_khz");
 
   gNAV1StandbyMhz = XPLMFindDataRef("sim/cockpit2/radios/actuators/nav1_standby_frequency_Mhz");
   gNAV1Standbykhz = XPLMFindDataRef("sim/cockpit2/radios/actuators/nav1_standby_frequency_khz");
