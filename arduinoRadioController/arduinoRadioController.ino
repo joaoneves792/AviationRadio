@@ -1,6 +1,6 @@
 #include <Arduino.h>
-#include "si5351.h"
 #include <Wire.h>
+#include "si5351.h"
 #include "./Encoder.h"
 #include <avr/io.h>
 
@@ -29,7 +29,7 @@
 #define COM2_MODE 5
 
 #define ENCODER_CONTROLLS_STANDBY
-#undef ENCODER_CONTROLLS_STANDBY
+//#undef ENCODER_CONTROLLS_STANDBY
 
 
 // IF in kHz
@@ -227,7 +227,7 @@ void ATDD_POWERUP(){
 
     shm_ATDDReady = 0;
 
-    uint16_t freq = (GET_FREQ(shm_activeFreq)/((band==EU_FM_BAND)?10:1));
+    uint16_t freq = (GET_FREQ(shm_activeFreq)/((shm_bandmode==FM_MODE)?10:1));
 
     uint8_t args[7];
 
@@ -448,7 +448,12 @@ void readEncoder(){
     printChange();
     //We are only changing standby freq, so no need for powerup
 #ifndef ENCODER_CONTROLLS_STANDBY
-    ATDD_POWERUP();
+    if(shm_bandmode == FM_MODE)
+      ATDD_POWERUP();
+    else{
+      uint64_t LO = GET_FREQ(shm_activeFreq)*SI5351_FREQ_MULT*1000 - IF*SI5351_FREQ_MULT*1000;
+      shm_si5351.set_freq(LO, SI5351_CLK0);
+    }
 #endif
   }
   uint32_t outerEncoderRead = outerEncoder->read()%1000;
@@ -464,7 +469,7 @@ void readEncoder(){
     if(shm_bandmode == FM_MODE)
       ATDD_POWERUP();
     else{
-      uint64_t LO = GET_FREQ(shm_activeFreq)*SI5351_FREQ_MULT - IF;
+      uint64_t LO = GET_FREQ(shm_activeFreq)*SI5351_FREQ_MULT*1000 - IF*SI5351_FREQ_MULT*1000;
       shm_si5351.set_freq(LO, SI5351_CLK0);
     }
 #endif
@@ -501,7 +506,7 @@ void buttonDebounce(){
       if(shm_bandmode == FM_MODE){
         ATDD_POWERUP();
       }else if(shm_bandmode == AM_MODE){
-        uint64_t LO = GET_FREQ(shm_activeFreq)*SI5351_FREQ_MULT - IF;
+        uint64_t LO = GET_FREQ(shm_activeFreq)*SI5351_FREQ_MULT*1000 - IF*SI5351_FREQ_MULT*1000;
         shm_si5351.set_freq(LO, SI5351_CLK0);
       }
 
@@ -576,7 +581,7 @@ void checkMode(){
 #endif
     printChange();
     if(shm_bandmode == AM_MODE){
-      uint64_t LO = GET_FREQ(shm_activeFreq)*SI5351_FREQ_MULT - IF;
+      uint64_t LO = GET_FREQ(shm_activeFreq)*SI5351_FREQ_MULT*1000 - IF*SI5351_FREQ_MULT*1000;
       shm_si5351.set_freq(LO, SI5351_CLK0);
     }
     ATDD_RESET();
