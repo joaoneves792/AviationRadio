@@ -763,6 +763,10 @@ void setup() {
     delay(1000);
   }
   shm_si5351.update_status();
+  shm_si5351.set_clock_disable(SI5351_CLK1, SI5351_CLK_DISABLE_HI_Z);
+  shm_si5351.set_clock_disable(SI5351_CLK2, SI5351_CLK_DISABLE_HI_Z);
+  shm_si5351.set_clock_pwr(SI5351_CLK1, 0);
+  shm_si5351.set_clock_pwr(SI5351_CLK2, 0);
   
   checkMode();  
 
