@@ -2,5 +2,6 @@
     "board": "arduino:megaavr:nona4809",
     "configuration": "mode=off",
     "sketch": "arduinoRadioController.ino",
-    "port": "/dev/ttyACM0"
+    "port": "/dev/ttyACM0",
+    "defaultBaudRate": 9600
 }

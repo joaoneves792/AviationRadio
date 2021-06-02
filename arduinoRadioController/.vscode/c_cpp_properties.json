@@ -47,7 +47,7 @@
             "cppStandard": "c++11",
             "defines": [
                 "F_CPU=16000000L",
-                "ARDUINO=10813",
+                "ARDUINO=10815",
                 "ARDUINO_AVR_NANO_EVERY",
                 "ARDUINO_ARCH_MEGAAVR",
                 "MILLIS_USE_TIMERB3",
@@ -549,7 +549,8 @@
                 "__cpp_init_captures=201304",
                 "__ATOMIC_ACQ_REL=4",
                 "__ATOMIC_RELEASE=3",
-                "__BUILTIN_AVR_FMUL=1"
+                "__BUILTIN_AVR_FMUL=1",
+                "USBCON"
             ]
         }
     ]
