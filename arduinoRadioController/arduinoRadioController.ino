@@ -33,7 +33,7 @@
 
 
 // IF in kHz
-#define IF 1205
+#define IF 1200
 #define LO_PPM 146391
 
 const unsigned char digitSegments[16]  = {
@@ -221,8 +221,10 @@ void ATDD_POWERUP(){
       chspc = 1;
     }
     else if (shm_bandmode == AM_MODE){
-      band = 25; //SW bandmode
-      chspc = 5;
+      band = 20;
+      chspc = 1;
+      //band = 25; //SW bandmode
+      //chspc = 5;
     }
 
     shm_ATDDReady = 0;
@@ -319,7 +321,7 @@ void ATDD_GET_STATUS(){
           queueProperty(RX_BASS_TREBLE, 1);
           queueProperty(AM_SOFT_MUTE_SNR_THRESHOLD, 5);//40
           queueProperty(AM_SOFT_MUTE_SLOPE, 5);
-          queueProperty(AM_SOFT_MUTE_MAX_ATTENUATION, 30); //63
+          queueProperty(AM_SOFT_MUTE_MAX_ATTENUATION, 63); //63
           queueProperty(AM_SOFT_MUTE_RATE, 255);
         }
 
