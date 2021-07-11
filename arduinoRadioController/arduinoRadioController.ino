@@ -213,8 +213,11 @@ void ATDD_POWERUP(){
     uint8_t band;
     uint8_t chspc;
 
-    if(shm_bandmode != FM_MODE && shm_bandmode != AM_MODE && shm_bandmode != SW_MODE)
-      return; 
+    if(shm_bandmode != FM_MODE && shm_bandmode != AM_MODE && shm_bandmode != SW_MODE){
+      band = 2;
+      chspc = 1;
+    }
+    
 
     if(shm_bandmode == FM_MODE){
       band = 2;
@@ -310,6 +313,7 @@ void ATDD_GET_STATUS(){
     
     if(status & INFORDY_BIT_MASK){
       if(!shm_ATDDOperational){
+#define RX_HARD_MUTE 0x4001
 #define RX_BASS_TREBLE 0x4002
 #define AM_SOFT_MUTE_SLOPE 0x3301
 #define AM_SOFT_MUTE_MAX_ATTENUATION 0x3302
@@ -317,12 +321,16 @@ void ATDD_GET_STATUS(){
 #define AM_SOFT_MUTE_RATE 0x3300
         if(shm_bandmode == FM_MODE){
           queueProperty(RX_BASS_TREBLE, 1);
-        }else{
+          queueProperty(RX_HARD_MUTE, 0x0);
+        }else if(shm_bandmode == AM_MODE){
           queueProperty(RX_BASS_TREBLE, 1);
-          queueProperty(AM_SOFT_MUTE_SNR_THRESHOLD, 5);//40
+          queueProperty(RX_HARD_MUTE, 0x0);
+          /*queueProperty(AM_SOFT_MUTE_SNR_THRESHOLD, 10);//40
           queueProperty(AM_SOFT_MUTE_SLOPE, 5);
           queueProperty(AM_SOFT_MUTE_MAX_ATTENUATION, 63); //63
-          queueProperty(AM_SOFT_MUTE_RATE, 255);
+          queueProperty(AM_SOFT_MUTE_RATE, 255);*/
+        }else{
+          //queueProperty(RX_HARD_MUTE, 0b11);
         }
 
        //Mute: queueProperty(0x4001, 0x3);
@@ -430,6 +438,7 @@ void checkVolumePot(){
   uint16_t volume = map(average, 200, 1023, 20, 63);
   //uint16_t volume = map(average, 0, 1023, 0, 30);
   if(prevVolume != volume){
+    Serial.println(volume);
 #define RX_VOLUME 0x4000
    ATDD_SET_PROPERTY(RX_VOLUME, volume);
    shm_ATDDReady = 0;
@@ -522,7 +531,7 @@ void buttonDebounce(){
 
 
 void checkATTD(){
-  if(shm_ATDDIRQ && (shm_bandmode == FM_MODE || shm_bandmode == AM_MODE)){
+  if(shm_ATDDIRQ){
     ATDD_GET_STATUS();
     shm_ATDDIRQ = 0;
   }   
@@ -606,76 +615,6 @@ void applyQueuedProperties(){
 }
 
 void handleSerial(){
-  char query[3+6+1];
-  int8_t i = 0;
-  uint8_t mode;
-  uint8_t active;
-  if(Serial.available() > 0){
-    while(Serial.available() && i < 3){
-      char c = Serial.read();
-      if(c != '\n' || c != '\r'){
-        query[i] = c;
-        i++;
-      }
-      if(query[0] == 'a'){
-        shm_bandmode = AM_MODE;
-        return;
-      }
-      if(query[0] == 'x'){
-        shm_scanInProgress = 1;
-        return;
-      }
-    }
-    if(i==3){
-        mode = (query[1] == 'c')?COM_MODE:-1;
-        mode = (query[1] == 'n')?NAV_MODE:mode;
-        mode = (query[1] == 'f')?FM_MODE:mode;
-        mode = (query[1] == 'a')?AM_MODE:mode;
-        if(mode == -1) return;
-
-        active = (query[2] == 'a')?ACTIVE_MEMSLOT:-1;
-        active = (query[2] == 's')?STANDBY_MEMSLOT:active;
-        if(active == -1) return;
-    }
-    if(i==3 && query[0] == 'q'){
-        query[3] = '\0';
-        Serial.print(query);
-        freq f;
-        SET_FREQ(EEPROMread(mode, ACTIVE_MEMSLOT), f);
-        Serial.println(GET_FREQ(f));
-    }else if (i==3 && query[0] == 's'){
-      while(Serial.available() && (i < 3+6)){
-        char c = Serial.read();
-        if(c != '\n' || c != '\r'){
-          query[i] = c;
-          i++;
-        }
-      }
-      if(i==3+6){
-        query[3+6]='\0';
-        uint32_t serialFreq;
-        serialFreq = atol(query+3);
-        EEPROMwrite(serialFreq, mode, active);
-        if(shm_bandmode == mode){
-          if(active == ACTIVE_MEMSLOT){
-            SET_FREQ(serialFreq, shm_activeFreq);
-#ifndef ENCODER_CONTROLLS_STANDBY
-            innerEncoder->write(serialFreq%1000);
-            outerEncoder->write(serialFreq/1000);
-#endif
-            ATDD_POWERUP();
-          }else if(active == STANDBY_MEMSLOT){
-            SET_FREQ(serialFreq, shm_standbyFreq);
-#ifdef ENCODER_CONTROLLS_STANDBY
-            innerEncoder->write(serialFreq%1000);
-            outerEncoder->write(serialFreq/1000);
-#endif
-          }
-        }
-      }
-
-    }
-  }
 }
 
 void handleScan(){
