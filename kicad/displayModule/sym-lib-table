@@ -1,0 +1,4 @@
+(sym_lib_table
+  (lib (name display)(type Legacy)(uri /home/joao/workspace/aviradio/kicad/displayModule/Display_lib.lib)(options "")(descr ""))
+  (lib (name New_Library)(type Legacy)(uri ${KIPRJMOD}/New_Library.lib)(options "")(descr ""))
+)
