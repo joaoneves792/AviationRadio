@@ -29,7 +29,7 @@
 #define COM2_MODE 5
 
 #define ENCODER_CONTROLLS_STANDBY
-//#undef ENCODER_CONTROLLS_STANDBY
+#undef ENCODER_CONTROLLS_STANDBY
 
 
 // IF in kHz
@@ -325,10 +325,10 @@ void ATDD_GET_STATUS(){
         }else if(shm_bandmode == AM_MODE){
           queueProperty(RX_BASS_TREBLE, 1);
           queueProperty(RX_HARD_MUTE, 0x0);
-          /*queueProperty(AM_SOFT_MUTE_SNR_THRESHOLD, 10);//40
+          queueProperty(AM_SOFT_MUTE_SNR_THRESHOLD, 10);//40
           queueProperty(AM_SOFT_MUTE_SLOPE, 5);
           queueProperty(AM_SOFT_MUTE_MAX_ATTENUATION, 63); //63
-          queueProperty(AM_SOFT_MUTE_RATE, 255);*/
+          queueProperty(AM_SOFT_MUTE_RATE, 255);
         }else{
           //queueProperty(RX_HARD_MUTE, 0b11);
         }
@@ -594,6 +594,7 @@ void checkMode(){
     if(shm_bandmode == AM_MODE){
       uint64_t LO = GET_FREQ(shm_activeFreq)*SI5351_FREQ_MULT*1000 - IF*SI5351_FREQ_MULT*1000;
       shm_si5351.set_freq(LO, SI5351_CLK0);
+      Serial.print("SI5351 LO=");Serial.println(LO);
     }
     ATDD_RESET();
   }
@@ -607,6 +608,7 @@ void applyQueuedProperties(){
   shm_propertiesQueue = property->next;
 
   ATDD_SET_PROPERTY(property->property, property->value);
+  Serial.print("property set ");Serial.println(property->property);
   shm_ATDDIRQ = 1;
   shm_ATDDReady = 0;
 
