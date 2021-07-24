@@ -14,17 +14,6 @@ Comment3 ""
 Comment4 ""
 $EndDescr
 $Comp
-L MCU_Module:Arduino_Nano_Every A1
-U 1 1 60F8225D
-P 3050 2700
-F 0 "A1" H 3050 1611 50  0000 C CNN
-F 1 "Arduino_Nano_Every" H 3050 1520 50  0000 C CNN
-F 2 "Module:Arduino_Nano" H 3050 2700 50  0001 C CIN
-F 3 "https://content.arduino.cc/assets/NANOEveryV3.0_sch.pdf" H 3050 2700 50  0001 C CNN
-	1    3050 2700
-	1    0    0    -1  
-$EndComp
-$Comp
 L costum_parts:Si4844 U1
 U 1 1 60F84D86
 P 9500 3100
@@ -149,13 +138,13 @@ $EndComp
 $Comp
 L power:+5V #PWR06
 U 1 1 60FA381A
-P 3400 1600
-F 0 "#PWR06" H 3400 1450 50  0001 C CNN
-F 1 "+5V" H 3415 1773 50  0000 C CNN
-F 2 "" H 3400 1600 50  0001 C CNN
-F 3 "" H 3400 1600 50  0001 C CNN
-	1    3400 1600
-	1    0    0    -1  
+P 4150 1400
+F 0 "#PWR06" H 4150 1250 50  0001 C CNN
+F 1 "+5V" H 4165 1573 50  0000 C CNN
+F 2 "" H 4150 1400 50  0001 C CNN
+F 3 "" H 4150 1400 50  0001 C CNN
+	1    4150 1400
+	-1   0    0    1   
 $EndComp
 $Comp
 L power:+3.3V #PWR05
@@ -650,10 +639,6 @@ Wire Wire Line
 	2550 2900 1550 2900
 Wire Wire Line
 	2550 2200 2150 2200
-Wire Wire Line
-	3400 1600 3400 1700
-Wire Wire Line
-	3250 1700 3400 1700
 Wire Wire Line
 	3150 1700 3050 1700
 Wire Wire Line
@@ -1227,4 +1212,65 @@ Wire Wire Line
 	9250 4600 9250 4700
 Wire Wire Line
 	9250 4300 9250 4250
+$Comp
+L Device:CP C13
+U 1 1 6107E4A8
+P 3650 1550
+F 0 "C13" H 3768 1596 50  0000 L CNN
+F 1 "100uF" H 3768 1505 50  0000 L CNN
+F 2 "" H 3688 1400 50  0001 C CNN
+F 3 "~" H 3650 1550 50  0001 C CNN
+	1    3650 1550
+	1    0    0    -1  
+$EndComp
+$Comp
+L power:GND2 #PWR?
+U 1 1 61086458
+P 3650 1700
+F 0 "#PWR?" H 3650 1450 50  0001 C CNN
+F 1 "GND2" H 3655 1527 50  0000 C CNN
+F 2 "" H 3650 1700 50  0001 C CNN
+F 3 "" H 3650 1700 50  0001 C CNN
+	1    3650 1700
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector:Conn_01x02_Male J6
+U 1 1 61086AD9
+P 3900 1900
+F 0 "J6" V 4054 1712 50  0000 R CNN
+F 1 "GND2/+5v" V 3963 1712 50  0000 R CNN
+F 2 "" H 3900 1900 50  0001 C CNN
+F 3 "~" H 3900 1900 50  0001 C CNN
+	1    3900 1900
+	0    -1   -1   0   
+$EndComp
+Wire Wire Line
+	3900 1700 3650 1700
+Wire Wire Line
+	4000 1700 4000 1400
+Wire Wire Line
+	4000 1400 3650 1400
+Connection ~ 4000 1400
+Wire Wire Line
+	3400 1400 3400 1700
+$Comp
+L MCU_Module:Arduino_Nano_Every A1
+U 1 1 60F8225D
+P 3050 2700
+F 0 "A1" H 3050 1611 50  0000 C CNN
+F 1 "Arduino_Nano_Every" H 3050 1520 50  0000 C CNN
+F 2 "Module:Arduino_Nano" H 3050 2700 50  0001 C CIN
+F 3 "https://content.arduino.cc/assets/NANOEveryV3.0_sch.pdf" H 3050 2700 50  0001 C CNN
+	1    3050 2700
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	3400 1700 3250 1700
+Wire Wire Line
+	4150 1400 4000 1400
+Connection ~ 3650 1400
+Wire Wire Line
+	3650 1400 3400 1400
+Connection ~ 3650 1700
 $EndSCHEMATC
