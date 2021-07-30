@@ -12,6 +12,11 @@
 #define ATDD_RESET_PIN 5
 #define ATDD_IRQ_PIN 4
 
+#define OUTER_ENCODER_A_PIN 14
+#define OUTER_ENCODER_B_PIN 17
+#define INNER_ENCODER_A_PIN 16
+#define INNER_ENCODER_B_PIN 15
+
 #define SLAVE_ACTIVE_ADDRESS 0x12
 #define SLAVE_STNDBY_ADDRESS 0x13
 #define ATDD_ADDRESS 0x11
@@ -30,6 +35,8 @@
 
 #define ENCODER_CONTROLLS_STANDBY
 #undef ENCODER_CONTROLLS_STANDBY
+
+#define AM_SQUELCH_SNR_THRESHOLD 10
 
 
 // IF in kHz
@@ -325,9 +332,9 @@ void ATDD_GET_STATUS(){
         }else if(shm_bandmode == AM_MODE){
           queueProperty(RX_BASS_TREBLE, 1);
           queueProperty(RX_HARD_MUTE, 0x0);
-          queueProperty(AM_SOFT_MUTE_SNR_THRESHOLD, 10);//40
+          queueProperty(AM_SOFT_MUTE_SNR_THRESHOLD, AM_SQUELCH_SNR_THRESHOLD);
           queueProperty(AM_SOFT_MUTE_SLOPE, 5);
-          queueProperty(AM_SOFT_MUTE_MAX_ATTENUATION, 63); //63
+          queueProperty(AM_SOFT_MUTE_MAX_ATTENUATION, 63); 
           queueProperty(AM_SOFT_MUTE_RATE, 255);
         }else{
           //queueProperty(RX_HARD_MUTE, 0b11);
@@ -577,12 +584,13 @@ void checkMode(){
     currentBandMode = shm_bandmode;
     SET_FREQ(EEPROMread(shm_bandmode, STANDBY_MEMSLOT), shm_standbyFreq);
     SET_FREQ(EEPROMread(shm_bandmode, ACTIVE_MEMSLOT), shm_activeFreq);
+#define ENCODER_IMPULSES_PER_DETENT 2
     if(outerEncoder != NULL)
       delete outerEncoder;
-    outerEncoder = new Encoder(14, 17, 2, 1);
+    outerEncoder = new Encoder(OUTER_ENCODER_A_PIN, OUTER_ENCODER_B_PIN, ENCODER_IMPULSES_PER_DETENT, 1);
     if(innerEncoder != NULL)
       delete innerEncoder;
-    innerEncoder = new Encoder(16, 15, 2, encoderSteps);
+    innerEncoder = new Encoder(INNER_ENCODER_A_PIN, INNER_ENCODER_B_PIN, ENCODER_IMPULSES_PER_DETENT, encoderSteps);
 #ifdef ENCODER_CONTROLLS_STANDBY
     innerEncoder->write(shm_standbyFreq.kHz);
     outerEncoder->write(shm_standbyFreq.MHz);
@@ -687,7 +695,7 @@ void setup() {
 
   //Init ATDD IC 
 
-  attachInterrupt(digitalPinToInterrupt(ATDD_IRQ_PIN), ATDDIHR, RISING);
+  attachInterrupt(digitalPinToInterrupt(ATDD_IRQ_PIN), ATDDIHR, FALLING);
   //Wire.setClock(10000); 
   //For Nano Every
   // Formula is: BAUD = ((F_CLKPER/frequency) - F_CLKPER*T_RISE - 10)/2;
@@ -698,6 +706,8 @@ void setup() {
   uint32_t baud = ((F_CPU_CORRECTED/frequency) - (((F_CPU_CORRECTED*t_rise)/1000)/1000)/1000 - 10)/2;
   TWI0.MBAUD = (uint8_t)baud;
 
+
+  delay(500);
 
   //Init LO IC
   while(!shm_si5351.init(SI5351_CRYSTAL_LOAD_8PF, 0, LO_PPM))
