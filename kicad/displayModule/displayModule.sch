@@ -47,17 +47,6 @@ F 3 "http://ww1.microchip.com/downloads/en/DeviceDoc/atmel-2586-avr-8-bit-microc
 	1    0    0    -1  
 $EndComp
 $Comp
-L 74xx:74HC595 U2
-U 1 1 60F908D5
-P 4250 1950
-F 0 "U2" H 4250 2731 50  0000 C CNN
-F 1 "74HC595" H 4250 2640 50  0000 C CNN
-F 2 "Package_DIP:DIP-16_W7.62mm" H 4250 1950 50  0001 C CNN
-F 3 "http://www.ti.com/lit/ds/symlink/sn74hc595.pdf" H 4250 1950 50  0001 C CNN
-	1    4250 1950
-	1    0    0    -1  
-$EndComp
-$Comp
 L 74xx:74HC595 U3
 U 1 1 60F914F6
 P 4300 3650
@@ -205,11 +194,6 @@ Connection ~ 3100 2150
 Wire Wire Line
 	2700 2250 3000 2250
 Wire Wire Line
-	3850 2250 3850 2150
-Wire Wire Line
-	3850 2150 3850 2050
-Connection ~ 3850 2150
-Wire Wire Line
 	3000 2250 3000 3750
 Wire Wire Line
 	3000 3750 3900 3750
@@ -271,74 +255,44 @@ $EndComp
 $Comp
 L Transistor_FET:2N7000 Q1
 U 1 1 60FD6091
-P 7900 1500
-F 0 "Q1" V 8242 1500 50  0000 C CNN
-F 1 "2N7000" V 8151 1500 50  0000 C CNN
-F 2 "Package_TO_SOT_THT:TO-92_Inline_Wide" H 8100 1425 50  0001 L CIN
-F 3 "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF" H 7900 1500 50  0001 L CNN
-	1    7900 1500
+P 7850 4550
+F 0 "Q1" V 8192 4550 50  0000 C CNN
+F 1 "2N7000" V 8101 4550 50  0000 C CNN
+F 2 "Package_TO_SOT_THT:TO-92_Inline_Wide" H 8050 4475 50  0001 L CIN
+F 3 "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF" H 7850 4550 50  0001 L CNN
+	1    7850 4550
 	0    -1   -1   0   
 $EndComp
 $Comp
 L Transistor_FET:2N7000 Q2
 U 1 1 60FDA55D
-P 7900 2150
-F 0 "Q2" V 8242 2150 50  0000 C CNN
-F 1 "2N7000" V 8151 2150 50  0000 C CNN
-F 2 "Package_TO_SOT_THT:TO-92_Inline_Wide" H 8100 2075 50  0001 L CIN
-F 3 "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF" H 7900 2150 50  0001 L CNN
-	1    7900 2150
+P 7850 3900
+F 0 "Q2" V 8192 3900 50  0000 C CNN
+F 1 "2N7000" V 8101 3900 50  0000 C CNN
+F 2 "Package_TO_SOT_THT:TO-92_Inline_Wide" H 8050 3825 50  0001 L CIN
+F 3 "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF" H 7850 3900 50  0001 L CNN
+	1    7850 3900
 	0    -1   -1   0   
 $EndComp
 $Comp
 L Transistor_FET:2N7000 Q3
 U 1 1 60FDB387
-P 7900 2800
-F 0 "Q3" V 8242 2800 50  0000 C CNN
-F 1 "2N7000" V 8151 2800 50  0000 C CNN
-F 2 "Package_TO_SOT_THT:TO-92_Inline_Wide" H 8100 2725 50  0001 L CIN
-F 3 "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF" H 7900 2800 50  0001 L CNN
-	1    7900 2800
+P 7850 3250
+F 0 "Q3" V 8192 3250 50  0000 C CNN
+F 1 "2N7000" V 8101 3250 50  0000 C CNN
+F 2 "Package_TO_SOT_THT:TO-92_Inline_Wide" H 8050 3175 50  0001 L CIN
+F 3 "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF" H 7850 3250 50  0001 L CNN
+	1    7850 3250
 	0    -1   -1   0   
 $EndComp
-Wire Wire Line
-	8100 1400 8100 2050
-Wire Wire Line
-	8100 2050 8100 2700
-Connection ~ 8100 2050
-Wire Wire Line
-	8100 2700 8250 2700
-Connection ~ 8100 2700
-Wire Wire Line
-	5800 1300 5800 1500
-Wire Wire Line
-	7700 2050 7700 1900
-Wire Wire Line
-	7700 1900 5800 1900
-Wire Wire Line
-	7700 2700 6400 2700
-Wire Wire Line
-	6400 2700 6400 2100
-Wire Wire Line
-	6400 2100 5800 2100
-Wire Wire Line
-	7900 1700 7200 1700
-Wire Wire Line
-	7200 1700 7200 950 
-Wire Wire Line
-	7200 950  5000 950 
 Wire Wire Line
 	5000 950  5000 2050
 Wire Wire Line
 	5000 2050 4650 2050
 Wire Wire Line
-	7900 2350 7150 2350
-Wire Wire Line
 	5050 900  5050 2150
 Wire Wire Line
 	5050 2150 4650 2150
-Wire Wire Line
-	7900 3000 7250 3000
 Wire Wire Line
 	7250 850  5100 850 
 Wire Wire Line
@@ -346,100 +300,39 @@ Wire Wire Line
 Wire Wire Line
 	5100 2250 4650 2250
 Wire Wire Line
-	7250 850  7250 3000
-Wire Wire Line
-	7700 1400 7700 1300
-Wire Wire Line
-	7700 1300 5800 1300
-Wire Wire Line
-	7150 2350 7150 900 
-Wire Wire Line
 	5050 900  7150 900 
 $Comp
 L Transistor_FET:2N7000 Q4
 U 1 1 60FFD383
-P 7900 3450
-F 0 "Q4" V 8242 3450 50  0000 C CNN
-F 1 "2N7000" V 8151 3450 50  0000 C CNN
-F 2 "Package_TO_SOT_THT:TO-92_Inline_Wide" H 8100 3375 50  0001 L CIN
-F 3 "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF" H 7900 3450 50  0001 L CNN
-	1    7900 3450
-	0    -1   -1   0   
-$EndComp
-$Comp
-L Transistor_FET:2N7000 Q5
-U 1 1 60FFDD8B
-P 7900 4100
-F 0 "Q5" V 8242 4100 50  0000 C CNN
-F 1 "2N7000" V 8151 4100 50  0000 C CNN
-F 2 "Package_TO_SOT_THT:TO-92_Inline_Wide" H 8100 4025 50  0001 L CIN
-F 3 "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF" H 7900 4100 50  0001 L CNN
-	1    7900 4100
+P 7850 2600
+F 0 "Q4" V 8192 2600 50  0000 C CNN
+F 1 "2N7000" V 8101 2600 50  0000 C CNN
+F 2 "Package_TO_SOT_THT:TO-92_Inline_Wide" H 8050 2525 50  0001 L CIN
+F 3 "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF" H 7850 2600 50  0001 L CNN
+	1    7850 2600
 	0    -1   -1   0   
 $EndComp
 $Comp
 L Transistor_FET:2N7000 Q6
 U 1 1 60FFECDE
-P 7900 4750
-F 0 "Q6" V 8242 4750 50  0000 C CNN
-F 1 "2N7000" V 8151 4750 50  0000 C CNN
-F 2 "Package_TO_SOT_THT:TO-92_Inline_Wide" H 8100 4675 50  0001 L CIN
-F 3 "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF" H 7900 4750 50  0001 L CNN
-	1    7900 4750
+P 7850 1300
+F 0 "Q6" V 8192 1300 50  0000 C CNN
+F 1 "2N7000" V 8101 1300 50  0000 C CNN
+F 2 "Package_TO_SOT_THT:TO-92_Inline_Wide" H 8050 1225 50  0001 L CIN
+F 3 "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF" H 7850 1300 50  0001 L CNN
+	1    7850 1300
 	0    -1   -1   0   
 $EndComp
 Wire Wire Line
-	8100 3350 8100 4000
-Wire Wire Line
-	8100 4000 8100 4650
-Connection ~ 8100 4000
-Wire Wire Line
-	8100 3350 8100 2700
-Connection ~ 8100 3350
-Wire Wire Line
-	7700 3350 7700 3100
-Wire Wire Line
-	7700 3100 5800 3100
-Wire Wire Line
 	5800 3100 5800 3250
-Wire Wire Line
-	7700 4000 7250 4000
-Wire Wire Line
-	7250 4000 7250 3650
-Wire Wire Line
-	7250 3650 5800 3650
-Wire Wire Line
-	7050 4650 7050 3850
-Wire Wire Line
-	7050 3850 5800 3850
-Wire Wire Line
-	7050 4650 7700 4650
-Wire Wire Line
-	7900 3650 7550 3650
-Wire Wire Line
-	7550 3650 7550 750 
-Wire Wire Line
-	7550 750  4950 750 
 Wire Wire Line
 	4950 750  4950 1750
 Wire Wire Line
 	4950 1750 4650 1750
 Wire Wire Line
-	7900 4300 7600 4300
-Wire Wire Line
-	7600 4300 7600 700 
-Wire Wire Line
-	7600 700  4850 700 
-Wire Wire Line
 	4850 700  4850 1850
 Wire Wire Line
 	4850 1850 4650 1850
-Wire Wire Line
-	7900 4950 7650 4950
-Wire Wire Line
-	7650 4950 7650 650 
-Wire Wire Line
-	7650 650  4800 650 
 Wire Wire Line
 	4800 650  4800 1950
 Wire Wire Line
@@ -547,4 +440,112 @@ F 3 "~" H 8400 2700 50  0001 C CNN
 	1    8400 2700
 	0    -1   -1   0   
 $EndComp
+Wire Wire Line
+	3850 2150 3850 2050
+Wire Wire Line
+	3850 2250 3850 2150
+Connection ~ 3850 2150
+$Comp
+L 74xx:74HC595 U2
+U 1 1 60F908D5
+P 4250 1950
+F 0 "U2" H 4250 2731 50  0000 C CNN
+F 1 "74HC595" H 4250 2640 50  0000 C CNN
+F 2 "Package_DIP:DIP-16_W7.62mm" H 4250 1950 50  0001 C CNN
+F 3 "http://www.ti.com/lit/ds/symlink/sn74hc595.pdf" H 4250 1950 50  0001 C CNN
+	1    4250 1950
+	1    0    0    -1  
+$EndComp
+$Comp
+L Transistor_FET:2N7000 Q5
+U 1 1 60FFDD8B
+P 7850 1950
+F 0 "Q5" V 8192 1950 50  0000 C CNN
+F 1 "2N7000" V 8101 1950 50  0000 C CNN
+F 2 "Package_TO_SOT_THT:TO-92_Inline_Wide" H 8050 1875 50  0001 L CIN
+F 3 "https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF" H 7850 1950 50  0001 L CNN
+	1    7850 1950
+	0    -1   -1   0   
+$EndComp
+Wire Wire Line
+	8050 4450 8050 3800
+Wire Wire Line
+	8050 3800 8050 3150
+Connection ~ 8050 3800
+Wire Wire Line
+	8050 3150 8050 2700
+Wire Wire Line
+	8050 2700 8250 2700
+Connection ~ 8050 3150
+Wire Wire Line
+	8050 2700 8050 2500
+Connection ~ 8050 2700
+Wire Wire Line
+	8050 2500 8050 1850
+Connection ~ 8050 2500
+Wire Wire Line
+	8050 1850 8050 1200
+Connection ~ 8050 1850
+Wire Wire Line
+	7650 1850 6500 1850
+Wire Wire Line
+	6500 1850 6500 1900
+Wire Wire Line
+	6500 1900 5800 1900
+Wire Wire Line
+	5800 1200 5800 1500
+Wire Wire Line
+	5800 1200 7650 1200
+Wire Wire Line
+	7650 3150 7050 3150
+Wire Wire Line
+	7050 3150 7050 3100
+Wire Wire Line
+	7050 3100 5800 3100
+Wire Wire Line
+	7650 3800 7650 3650
+Wire Wire Line
+	7650 3650 5800 3650
+Wire Wire Line
+	7650 4450 7650 3850
+Wire Wire Line
+	7650 3850 5800 3850
+Wire Wire Line
+	7600 2150 7850 2150
+Wire Wire Line
+	7650 2500 6550 2500
+Wire Wire Line
+	6550 2500 6550 2100
+Wire Wire Line
+	6550 2100 5800 2100
+Wire Wire Line
+	7650 1500 7850 1500
+Wire Wire Line
+	4950 750  7650 750 
+Wire Wire Line
+	7650 750  7650 1500
+Wire Wire Line
+	4850 700  7600 700 
+Wire Wire Line
+	7600 700  7600 2150
+Wire Wire Line
+	7550 650  7550 2800
+Wire Wire Line
+	7550 2800 7850 2800
+Wire Wire Line
+	4800 650  7550 650 
+Wire Wire Line
+	5000 950  7100 950 
+Wire Wire Line
+	7100 950  7100 3450
+Wire Wire Line
+	7100 3450 7850 3450
+Wire Wire Line
+	7150 900  7150 4100
+Wire Wire Line
+	7150 4100 7850 4100
+Wire Wire Line
+	7250 850  7250 4750
+Wire Wire Line
+	7250 4750 7850 4750
 $EndSCHEMATC

@@ -34,9 +34,9 @@
 #define COM2_MODE 5
 
 #define ENCODER_CONTROLLS_STANDBY
-#undef ENCODER_CONTROLLS_STANDBY
+//#undef ENCODER_CONTROLLS_STANDBY
 
-#define AM_SQUELCH_SNR_THRESHOLD 10
+#define AM_SQUELCH_SNR_THRESHOLD 7
 
 
 // IF in kHz
@@ -86,6 +86,7 @@ uint8_t shm_bandmode = 0;
 volatile uint8_t shm_ATDDIRQ = 0;
 uint8_t shm_ATDDOperational = 0;
 uint8_t shm_ATDDReady = 0;
+uint8_t shm_AMStationDetected = 0;
 uint8_t shm_scanInProgress = 0;
 Si5351 shm_si5351(LO_ADDRESS);
 /*-----------------------*/
@@ -332,15 +333,7 @@ void ATDD_GET_STATUS(){
         }else if(shm_bandmode == AM_MODE){
           queueProperty(RX_BASS_TREBLE, 1);
           queueProperty(RX_HARD_MUTE, 0x0);
-          queueProperty(AM_SOFT_MUTE_SNR_THRESHOLD, AM_SQUELCH_SNR_THRESHOLD);
-          queueProperty(AM_SOFT_MUTE_SLOPE, 5);
-          queueProperty(AM_SOFT_MUTE_MAX_ATTENUATION, 63); 
-          queueProperty(AM_SOFT_MUTE_RATE, 255);
-        }else{
-          //queueProperty(RX_HARD_MUTE, 0b11);
         }
-
-       //Mute: queueProperty(0x4001, 0x3);
       }
       shm_ATDDOperational = 1;
       digitalWrite(LED_BUILTIN, HIGH);
@@ -356,6 +349,15 @@ void ATDD_GET_STATUS(){
         shm_scanInProgress = 0;
       }
       (status & STATION_BIT_MASK)?Serial.print("valid"):Serial.print("invalid");
+      if(!shm_AMStationDetected && (status & STATION_BIT_MASK)){
+        shm_AMStationDetected = 1;
+        //Set squelch
+        queueProperty(AM_SOFT_MUTE_SNR_THRESHOLD, AM_SQUELCH_SNR_THRESHOLD);
+        queueProperty(AM_SOFT_MUTE_SLOPE, 5);
+        queueProperty(AM_SOFT_MUTE_MAX_ATTENUATION, 63); 
+        queueProperty(AM_SOFT_MUTE_RATE, 255);
+      }
+
       Serial.print(" Stereo ");
       (status & STEREO_BIT_MASK)?Serial.print("on"):Serial.print("off");
       Serial.print(" Band: ");
@@ -376,6 +378,20 @@ void ATDDIHR(){
   shm_ATDDIRQ=1;
   //Serial.println("IRQ");
 } 
+
+
+void onFreqChange(){
+  if(shm_bandmode == AM_MODE){
+    shm_AMStationDetected = 0;
+    //Set defaults
+    queueProperty(AM_SOFT_MUTE_SNR_THRESHOLD, 0x0008);
+    queueProperty(AM_SOFT_MUTE_SLOPE, 0x0001);
+    queueProperty(AM_SOFT_MUTE_MAX_ATTENUATION, 0x0010); 
+    queueProperty(AM_SOFT_MUTE_RATE, 0x0040);
+  }
+
+  printChange();
+}
 
 /*-----------------------------*/
 void printChange(){
@@ -445,7 +461,7 @@ void checkVolumePot(){
   uint16_t volume = map(average, 200, 1023, 20, 63);
   //uint16_t volume = map(average, 0, 1023, 0, 30);
   if(prevVolume != volume){
-    Serial.println(volume);
+    //Serial.println(volume);
 #define RX_VOLUME 0x4000
    ATDD_SET_PROPERTY(RX_VOLUME, volume);
    shm_ATDDReady = 0;
@@ -463,7 +479,7 @@ void readEncoder(){
   if(innerEncoderRead != shm_activeFreq.kHz){
     shm_activeFreq.kHz = innerEncoderRead;
 #endif
-    printChange();
+    onFreqChange();
     //We are only changing standby freq, so no need for powerup
 #ifndef ENCODER_CONTROLLS_STANDBY
     if(shm_bandmode == FM_MODE)
@@ -482,7 +498,7 @@ void readEncoder(){
   if(outerEncoderRead != shm_activeFreq.MHz){
     shm_activeFreq.MHz = outerEncoderRead;
 #endif
-    printChange();
+    onFreqChange();
 #ifndef ENCODER_CONTROLLS_STANDBY
     if(shm_bandmode == FM_MODE)
       ATDD_POWERUP();
@@ -520,7 +536,7 @@ void buttonDebounce(){
       innerEncoder->write(shm_activeFreq.kHz);
       outerEncoder->write(shm_activeFreq.MHz);
 #endif
-      printChange();
+      onFreqChange();
       if(shm_bandmode == FM_MODE){
         ATDD_POWERUP();
       }else if(shm_bandmode == AM_MODE){
@@ -598,7 +614,7 @@ void checkMode(){
     innerEncoder->write(shm_activeFreq.kHz);
     outerEncoder->write(shm_activeFreq.MHz);
 #endif
-    printChange();
+    onFreqChange();
     if(shm_bandmode == AM_MODE){
       uint64_t LO = GET_FREQ(shm_activeFreq)*SI5351_FREQ_MULT*1000 - IF*SI5351_FREQ_MULT*1000;
       shm_si5351.set_freq(LO, SI5351_CLK0);
@@ -647,7 +663,7 @@ void handleScan(){
   innerEncoder->write(shm_activeFreq.kHz);
   outerEncoder->write(shm_activeFreq.MHz);
 #endif
-  printChange();
+  onFreqChange();
   ATDD_POWERUP();
 }
 
