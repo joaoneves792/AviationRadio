@@ -36,6 +36,12 @@
 #define ENCODER_CONTROLLS_STANDBY
 //#undef ENCODER_CONTROLLS_STANDBY
 
+#define RX_HARD_MUTE 0x4001
+#define RX_BASS_TREBLE 0x4002
+#define AM_SOFT_MUTE_SLOPE 0x3301
+#define AM_SOFT_MUTE_MAX_ATTENUATION 0x3302
+#define AM_SOFT_MUTE_SNR_THRESHOLD 0x3303
+#define AM_SOFT_MUTE_RATE 0x3300
 #define AM_SQUELCH_SNR_THRESHOLD 7
 
 
@@ -190,7 +196,7 @@ uint16_t ATDD_FREQ_TO_INT_AM(uint16_t ATDD_freq){
 
 void ATDD_SET_PROPERTY(uint16_t propertyNumber, uint16_t parameter)
 {
-  if(!shm_ATDDOperational)
+  if(!shm_ATDDOperational || !shm_ATDDReady)
     return;
 
   shm_ATDDReady = 0;
@@ -204,6 +210,11 @@ void ATDD_SET_PROPERTY(uint16_t propertyNumber, uint16_t parameter)
     Wire.write(parameter >> 8);    // Send the argments. High Byte - Most significant first
     Wire.write(parameter & 0xff);     // Send the argments. Low Byte - Less significant after
     Wire.endTransmission();
+
+    do{
+      delay(2);
+      ATDD_GET_STATUS();
+    }while(!shm_ATDDReady);
 }
 
 
@@ -276,7 +287,8 @@ void ATDD_POWERUP(){
     Wire.write(args[5]);
     Wire.write(args[6]);
     Wire.endTransmission();
-   
+    delay(3);//the host controller needs to wait for 2 ms before polling response byte CTS bit or reading the response directly.
+
     //ATDD_SET_PROPERTY(0x0201, 0x7c9c); //Set clock to 31900
     //ATDD_SET_PROPERTY(0x0202, 500); //Set divider to 500
     
@@ -299,7 +311,7 @@ void ATDD_GET_STATUS(){
     Wire.beginTransmission(ATDD_ADDRESS);
     Wire.write(ATDD_GET_STATUS_CMD);
     Wire.endTransmission();
-    delay(2);
+    delay(3);//the host controller needs to wait for 2 ms before polling response byte CTS bit or reading the response directly.
     if(!Wire.requestFrom(ATDD_ADDRESS, 4))
       return;
     uint8_t status = Wire.read();
@@ -313,7 +325,7 @@ void ATDD_GET_STATUS(){
       return;
     }
 
-    if(status & HOSTPWRUP_BIT_MASK){
+    if(status & HOSTPWRUP_BIT_MASK && (shm_bandmode == FM_MODE || shm_bandmode == AM_MODE)){
       Serial.println("ATDD: Requested powerup");
       ATDD_POWERUP();
       return;
@@ -321,12 +333,6 @@ void ATDD_GET_STATUS(){
     
     if(status & INFORDY_BIT_MASK){
       if(!shm_ATDDOperational){
-#define RX_HARD_MUTE 0x4001
-#define RX_BASS_TREBLE 0x4002
-#define AM_SOFT_MUTE_SLOPE 0x3301
-#define AM_SOFT_MUTE_MAX_ATTENUATION 0x3302
-#define AM_SOFT_MUTE_SNR_THRESHOLD 0x3303
-#define AM_SOFT_MUTE_RATE 0x3300
         if(shm_bandmode == FM_MODE){
           queueProperty(RX_BASS_TREBLE, 1);
           queueProperty(RX_HARD_MUTE, 0x0);
@@ -452,7 +458,7 @@ void checkVolumePot(){
   static uint16_t prevVolume = 0;
   static uint16_t average = potToDigit();
 
-  if(!shm_ATDDOperational)
+  if(!shm_ATDDOperational || !shm_ATDDReady)
     return;
 
   average -= average/10;
@@ -461,10 +467,10 @@ void checkVolumePot(){
   uint16_t volume = map(average, 200, 1023, 20, 63);
   //uint16_t volume = map(average, 0, 1023, 0, 30);
   if(prevVolume != volume){
-    //Serial.println(volume);
+   Serial.println(volume);
 #define RX_VOLUME 0x4000
    ATDD_SET_PROPERTY(RX_VOLUME, volume);
-   shm_ATDDReady = 0;
+   //shm_ATDDReady = 0;
    prevVolume = volume;
   }
 
@@ -640,33 +646,6 @@ void applyQueuedProperties(){
  
 }
 
-void handleSerial(){
-}
-
-void handleScan(){
-  if(!shm_scanInProgress || !shm_ATDDOperational)
-    return;
-
-  uint8_t chspc = (shm_bandmode == FM_MODE)?100:10;
-  shm_activeFreq.kHz += chspc;
-
-  if(shm_activeFreq.kHz >= 990){
-    shm_activeFreq.kHz = 0;
-  }
-
-  if(shm_activeFreq.kHz >= 1000){
-    shm_activeFreq.kHz = 0;
-    //shm_activeFreq.MHz += 1;
-  }
-
-#ifndef ENCODER_CONTROLLS_STANDBY
-  innerEncoder->write(shm_activeFreq.kHz);
-  outerEncoder->write(shm_activeFreq.MHz);
-#endif
-  onFreqChange();
-  ATDD_POWERUP();
-}
-
 void setup() {
   //Clock output
   //Set clock output on PA7
@@ -680,11 +659,14 @@ void setup() {
   pinMode(NAVselectPin, INPUT_PULLUP);
 
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(buttonPin, INPUT_PULLUP);
+  pinMode(ATDD_RESET_PIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
   shm_ATDDOperational = 0;
-  pinMode(buttonPin, INPUT_PULLUP);
+  shm_ATDDReady = 0;
+  shm_AMStationDetected = 0;
+  shm_ATDDIRQ = 0;
   
-  pinMode(ATDD_RESET_PIN, OUTPUT);
 
 
   Wire.begin();
@@ -702,8 +684,6 @@ void setup() {
   insertThread(createNewThread(checkMode, 100));
   insertThread(createNewThread(checkEEPROM, 500));
   insertThread(createNewThread(applyQueuedProperties, 10));
-  insertThread(createNewThread(handleSerial, 10));
-  insertThread(createNewThread(handleScan, 200));
 
   firstThread->next = threads;
 
